@@ -1,0 +1,51 @@
+# Local test stack for Gongserver (Mac/Linux) — NOT a full Pi image.
+# Covers: MariaDB, Apache+PHP, admin UI, poll.php / doha.php, schedule logic.
+# Does not cover: hostapd AP, GPIO relay, RPi audio hardware, install.sh apt path.
+
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: gong
+      MYSQL_USER: gong
+      MYSQL_PASSWORD: gongpass
+    ports:
+      - "3307:3306"
+    volumes:
+      - gong_db:/var/lib/mysql
+      - ./db/gong.sql:/docker-entrypoint-initdb.d/01-gong.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      GONG_DB_HOST: db
+      GONG_DB_USER: gong
+      GONG_DB_PASS: gongpass
+      GONG_DB_NAME: gong
+      GONG_AUDIO_PLAYER: dummy
+      # Decode-only audio in containers (no ALSA device on Docker Desktop)
+      GONG_AUDIO_DUMMY: "1"
+      # Allow doha tests any hour
+      GONG_FORCE_DOHA: "0"
+    volumes:
+      - ./app/dhamma:/home/dhamma:ro
+      - ./app/www/index.php:/var/www/html/index.php:ro
+      - ./docker/config.inc.php:/etc/gongserver/config.inc.php:ro
+      - gong_log:/var/log
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  gong_db:
+  gong_log:

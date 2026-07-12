@@ -1,0 +1,19 @@
+#!/bin/sh
+# Best-effort time sync when internet is reachable (optional on isolated AP).
+# Prefer timedatectl/NTP if available; fall back to ntpdate.
+
+set -eu
+
+if command -v timedatectl >/dev/null 2>&1; then
+  # Ensure NTP is on when network exists; ignore failures offline
+  timedatectl set-ntp true 2>/dev/null || true
+  exit 0
+fi
+
+if command -v ntpdate >/dev/null 2>&1; then
+  if ping -q -c 1 -W 2 pool.ntp.org >/dev/null 2>&1; then
+    ntpdate -s -u pool.ntp.org || true
+  fi
+fi
+
+exit 0

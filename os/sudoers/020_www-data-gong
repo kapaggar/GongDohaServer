@@ -1,0 +1,2 @@
+# Allow admin UI to set system clock (validated in PHP first)
+www-data ALL=(ALL) NOPASSWD: /bin/date -s *, /sbin/hwclock -w, /usr/sbin/hwclock -w
