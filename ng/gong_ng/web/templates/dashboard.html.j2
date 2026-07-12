@@ -1,0 +1,51 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<div class="card">
+  {% if status.course %}
+    <h2>{{ status.course.type }} course — Day {{ status.course.day }}
+        <small>of {{ status.course.total_days }}</small></h2>
+  {% else %}
+    <h2>No course running</h2>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('ui.toggles') }}" class="toggles">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for key, label in [("enabled","Master"), ("gong_enabled","Gong"),
+                          ("doha_enabled","Doha"), ("relay_enabled","Relay")] %}
+    <label class="toggle">
+      <input type="checkbox" name="{{ key }}"
+             {% if status.toggles[key] %}checked{% endif %}> {{ label }}
+    </label>
+    {% endfor %}
+    <button>Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Next events</h3>
+  {% if status.next %}
+  <ul class="events">
+    {% for e in status.next %}
+    <li>{{ "🔔" if e.kind == "gong" else "🎵" }}
+        {{ e.at[11:16] }} <small>{{ e.at[:10] }}</small>
+        {% if e.kind == "gong" %}×{{ e.repeats }}{% else %}doha{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>Nothing scheduled in the next two days.</p>{% endif %}
+</div>
+
+<div class="card actions">
+  <form method="post" action="{{ url_for('ui.action') }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button name="do" value="gong">Test gong</button>
+    <button name="do" value="doha">Test doha</button>
+    <button name="do" value="stop" class="danger">⏹ Stop</button>
+  </form>
+  {% if status.playing %}<p class="playing">▶ playing…</p>{% endif %}
+</div>
+
+<p class="meta">Disk free: {{ status.disk_free_mb }} MB
+{% if status.last_play %} · Last play: {{ status.last_play.kind }}
+   {{ status.last_play.result }} at {{ status.last_play.ts_utc[11:16] }} UTC
+{% endif %}</p>
+{% endblock %}

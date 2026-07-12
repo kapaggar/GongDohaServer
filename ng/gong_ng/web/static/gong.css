@@ -1,0 +1,41 @@
+:root { --fg: #222; --bg: #faf7f0; --accent: #7a4a12; --card: #fff; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg);
+       background: var(--bg); }
+main { max-width: 640px; margin: 0 auto; padding: 12px; }
+header .strip { display: flex; gap: 12px; padding: 8px 12px; background: var(--accent);
+                color: #fff; font-variant-numeric: tabular-nums; }
+header .strip .tz { margin-left: auto; opacity: .8; }
+#clock { font-weight: 700; }
+.banner { background: #b00020; color: #fff; padding: 8px 12px; }
+.banner a { color: #fff; }
+nav { display: flex; flex-wrap: wrap; gap: 2px; background: #eee2cf; padding: 4px; }
+nav a, nav .link { padding: 6px 10px; text-decoration: none; color: var(--accent);
+                   background: none; border: 0; font: inherit; cursor: pointer; }
+.card { background: var(--card); border-radius: 8px; padding: 12px;
+        margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+label { display: block; }
+input, select, button { font: inherit; padding: 8px; border: 1px solid #ccc;
+                        border-radius: 6px; }
+button, .button { background: var(--accent); color: #fff; border: 0;
+                  cursor: pointer; text-decoration: none; display: inline-block; }
+button.danger { background: #b00020; }
+button.link { background: none; color: var(--accent); }
+.toggles { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.toggle { display: inline-flex; gap: 6px; align-items: center; }
+table.card { width: 100%; border-collapse: collapse; }
+table.card th, table.card td { text-align: left; padding: 6px 8px;
+                               border-bottom: 1px solid #eee; }
+tr.active { background: #f3e8d7; }
+tr.error td, tr.missed td { color: #b00020; }
+.events { list-style: none; padding: 0; margin: 0; }
+.events li { padding: 4px 0; font-variant-numeric: tabular-nums; }
+.flash { background: #fff3cd; border: 1px solid #eec962; padding: 8px 12px;
+         border-radius: 6px; margin: 12px 0; }
+.bigtime { font-size: 2.6em; margin: 0; font-variant-numeric: tabular-nums; }
+.meta { color: #777; font-size: .9em; }
+.playing { color: var(--accent); font-weight: 700; }
+pre.card { overflow-x: auto; font-size: .8em; }
+form.inline { display: inline; }

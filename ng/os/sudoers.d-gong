@@ -1,0 +1,3 @@
+# Gong-NG: the single privileged operation available to the app user.
+# Install as /etc/sudoers.d/gong-ng (mode 0440).
+gong ALL=(root) NOPASSWD: /opt/gong-ng/bin/gong-settime

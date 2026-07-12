@@ -1,0 +1,7 @@
+#!/bin/sh
+# Appliance CLI. Uses the production venv if installed, else the dev venv.
+if [ -x /opt/gong-ng/venv/bin/python ]; then
+    exec /opt/gong-ng/venv/bin/python -m gong_ng.ctl "$@"
+fi
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$DIR/.venv/bin/python" -m gong_ng.ctl "$@"

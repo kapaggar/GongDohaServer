@@ -1,0 +1,25 @@
+#!/bin/bash
+# Post-boot smoke check. A headless field unit has no display, so on failure
+# we blink the green ACT LED in an SOS pattern until someone notices.
+set -u
+
+if sudo -u gong GONG_CONFIG=/etc/gong-ng/config.toml \
+        /opt/gong-ng/venv/bin/python -m gong_ng.ctl status --check \
+   && nmcli -t -f NAME con show --active | grep -q '^gong-ap$'; then
+    echo "gong-ng smoke check: ok"
+    exit 0
+fi
+
+echo "gong-ng smoke check: FAILED — blinking ACT LED SOS" >&2
+LED=/sys/class/leds/ACT
+[ -d "$LED" ] || LED=/sys/class/leds/led0
+[ -d "$LED" ] || exit 1
+echo none > "$LED/trigger" 2>/dev/null || true
+blink() { echo 1 > "$LED/brightness"; sleep "$1"; echo 0 > "$LED/brightness"; sleep 0.2; }
+for _ in $(seq 60); do  # ~5 minutes of SOS
+    for _ in 1 2 3; do blink 0.2; done
+    for _ in 1 2 3; do blink 0.6; done
+    for _ in 1 2 3; do blink 0.2; done
+    sleep 1.5
+done
+exit 1

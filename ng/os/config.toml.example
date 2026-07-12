@@ -1,0 +1,25 @@
+# /etc/gong-ng/config.toml — machine facts. Staff-changeable settings live
+# in the DB and are edited from the web UI, not here.
+
+[audio]
+player = "mpv"
+# Pi 3B headphone jack on Bookworm. Verify with: mpv --audio-device=help
+alsa_device = "alsa/plughw:CARD=Headphones"
+mixer_setup = ["amixer sset Headphone 100%"]
+
+[relay]
+enabled_hw = true
+gpio = 17            # BCM; physical pin 11
+active_low = true
+settle_seconds = 5
+
+[time]
+timezone = "Asia/Kolkata"
+fire_grace_seconds = 120
+
+[web]
+listen = "0.0.0.0:80"
+session_hours = 720
+
+[paths]
+data_dir = "/var/lib/gong"

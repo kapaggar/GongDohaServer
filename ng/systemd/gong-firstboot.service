@@ -1,0 +1,12 @@
+[Unit]
+Description=Gong-NG post-install smoke check (blinks ACT LED SOS on failure)
+After=gongd.service network-online.target
+Wants=gongd.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gong-ng/bin/gong-smoke-check
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

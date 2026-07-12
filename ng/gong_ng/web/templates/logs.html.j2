@@ -1,0 +1,22 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Play history</h2>
+<table class="card">
+  <tr><th>When (UTC)</th><th>What</th><th>File</th><th>×</th><th>Result</th></tr>
+  {% for p in plays %}
+  <tr class="{{ p.result }}">
+    <td>{{ p.ts_utc[5:16].replace("T", " ") }}</td>
+    <td>{{ p.kind }}</td>
+    <td>{{ p.file.rsplit("/", 1)[-1] }}</td>
+    <td>{{ p.repeats }}</td>
+    <td>{{ p.result }}{% if p.detail %} <small>{{ p.detail }}</small>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">Nothing played yet.</td></tr>
+  {% endfor %}
+</table>
+{% if journal %}
+<h3>Service log</h3>
+<pre class="card">{{ journal }}</pre>
+{% endif %}
+{% endblock %}

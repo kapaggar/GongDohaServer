@@ -1,0 +1,34 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Courses</h2>
+<form method="post" class="card row">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <select name="course_type_id">
+    {% for ct in course_types %}
+    <option value="{{ ct.id }}">{{ ct.name }}</option>
+    {% endfor %}
+  </select>
+  <input type="date" name="start_date" required>
+  <input type="text" name="note" placeholder="note (optional)">
+  <button>Add course</button>
+</form>
+
+<table class="card">
+  <tr><th>Start (zero day)</th><th>Type</th><th>Note</th><th></th></tr>
+  {% for c in courses %}
+  <tr {% if active and active.course_id == c.id %}class="active"{% endif %}>
+    <td>{{ c.start_date }}
+        {% if active and active.course_id == c.id %}
+        <b>· Day {{ active.day }}</b>{% endif %}</td>
+    <td>{{ c.type_name }}</td>
+    <td>{{ c.note }}</td>
+    <td>
+      <form method="post" onsubmit="return confirm('Delete course?')">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button name="delete" value="{{ c.id }}" class="danger">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

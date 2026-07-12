@@ -1,0 +1,21 @@
+# Gong-NG first-boot configuration.
+# Copy to the SD card boot partition as gong-firstboot.toml and edit.
+# Consumed once by firstrun.sh, then deleted (it contains secrets).
+
+[unit]
+timezone = "Asia/Kolkata"
+admin_pin = "482913"          # initial UI PIN — change per unit!
+
+[wifi]
+ssid = "DhammaGong"
+passphrase = "ChangeMePerCentre"   # WPA2; never ship the default
+country = "IN"
+channel = 6
+
+[relay]
+enabled_hw = true
+gpio = 17
+active_low = true
+
+[rtc]
+enabled = false               # true when a DS3231 is fitted

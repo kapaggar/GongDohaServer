@@ -1,0 +1,22 @@
+[Unit]
+Description=Gong-NG scheduler and admin UI
+After=network.target time-sync.target sound.target
+Documentation=file:/opt/gong-ng/README.md
+
+[Service]
+User=gong
+Group=gong
+SupplementaryGroups=audio gpio systemd-journal
+Environment=GONG_CONFIG=/etc/gong-ng/config.toml
+ExecStart=/opt/gong-ng/venv/bin/python -m gong_ng
+Restart=on-failure
+RestartSec=5
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ProtectSystem=strict
+ReadWritePaths=/var/lib/gong
+NoNewPrivileges=no
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
