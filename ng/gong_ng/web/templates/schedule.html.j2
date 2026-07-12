@@ -1,0 +1,74 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Schedule</h2>
+<form method="get" class="card row">
+  <select name="type" onchange="this.form.submit()">
+    <option value="nc" {% if sel_type == "nc" %}selected{% endif %}>No course</option>
+    {% for ct in course_types %}
+    <option value="{{ ct.id }}" {% if sel_type == ct.id|string %}selected{% endif %}>
+      {{ ct.name }}</option>
+    {% endfor %}
+  </select>
+  {% if sel_type != "nc" %}
+  <select name="day" onchange="this.form.submit()">
+    <option value="default" {% if sel_day == "default" %}selected{% endif %}>
+      Default day</option>
+    {% for d in days if d is not none %}
+    <option value="{{ d }}" {% if sel_day == d|string %}selected{% endif %}>
+      Day {{ d }}</option>
+    {% endfor %}
+  </select>
+  {% endif %}
+  <noscript><button>Show</button></noscript>
+</form>
+
+<table class="card">
+  <tr><th>Time</th><th>Strikes</th><th>Gap</th><th>Track</th><th></th></tr>
+  {% for e in events %}
+  <tr>
+    <td>{{ e.time_local }}</td>
+    <td>×{{ e.repeats }}</td>
+    <td>{{ e.gap_seconds if e.gap_seconds is not none else "–" }}</td>
+    <td>{{ e.track or "–" }}</td>
+    <td>
+      <form method="post">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="type" value="{{ sel_type }}">
+        <input type="hidden" name="day" value="{{ sel_day }}">
+        <button name="delete" value="{{ e.id }}" class="danger">✕</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No events — {% if sel_day != "default" %}the default day
+      applies{% else %}silence{% endif %}.</td></tr>
+  {% endfor %}
+</table>
+
+<form method="post" class="card row">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="type" value="{{ sel_type }}">
+  <input type="hidden" name="day" value="{{ sel_day }}">
+  <input type="time" name="time_local" required>
+  <input type="number" name="repeats" min="1" max="32" value="6" required
+         title="strikes">
+  <input type="number" name="gap_seconds" min="0" max="600" placeholder="gap s">
+  <select name="track">
+    <option value="">default track</option>
+    {% for t in tracks %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+  </select>
+  <button>Add</button>
+</form>
+
+{% if sel_type != "nc" %}
+<form method="post" class="card row">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="type" value="{{ sel_type }}">
+  <input type="hidden" name="day" value="{{ sel_day }}">
+  <label>Copy this day to
+    <input type="text" name="copy_to" size="7" placeholder="day # or 'default'">
+  </label>
+  <button>Copy</button>
+</form>
+{% endif %}
+{% endblock %}

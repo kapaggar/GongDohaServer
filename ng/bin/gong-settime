@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Set the system clock. The ONLY privileged helper in the appliance;
+whitelisted in sudoers for the gong user (design §4).
+
+Usage: gong-settime 'YYYY-MM-DD HH:MM'
+
+Validates with a real calendar parse (rejects 99:99, Feb 30). Writes the
+hardware RTC if present, else refreshes fake-hwclock.
+"""
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        dt = datetime.strptime(sys.argv[1], "%Y-%m-%d %H:%M")
+    except ValueError:
+        print("invalid date/time — need 'YYYY-MM-DD HH:MM'", file=sys.stderr)
+        return 2
+    value = dt.strftime("%Y-%m-%d %H:%M:00")
+    subprocess.run(["date", "-s", value], check=True)
+    if Path("/dev/rtc0").exists() or Path("/dev/rtc").exists():
+        subprocess.run(["hwclock", "-w"], check=False)
+    elif Path("/sbin/fake-hwclock").exists():
+        subprocess.run(["fake-hwclock", "save"], check=False)
+    print(f"clock set to {value}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

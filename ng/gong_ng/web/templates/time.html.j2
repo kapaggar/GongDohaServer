@@ -1,0 +1,21 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Time</h2>
+<div class="card">
+  <p class="bigtime" id="bigtime">{{ now.strftime("%H:%M:%S") }}</p>
+  <p>{{ now.strftime("%A %d %B %Y") }} · {{ tz }}
+     · RTC: {{ "present" if rtc else "not detected (fake-hwclock)" }}</p>
+  {% if clock_invalid %}
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button name="confirm" value="1">The clock above is correct — trust it</button>
+  </form>
+  {% endif %}
+</div>
+<form method="post" class="card row">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="date" name="date" required>
+  <input type="time" name="time" required>
+  <button onclick="return confirm('Set the system clock?')">Set clock</button>
+</form>
+{% endblock %}

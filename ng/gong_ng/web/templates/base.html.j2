@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DhammaGong</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='gong.css') }}">
+</head>
+<body>
+<header>
+  <div class="strip">
+    <span id="clock" data-epoch="{{ now.timestamp() }}">{{ now.strftime("%H:%M:%S") }}</span>
+    <span>{{ now.strftime("%a %d %b %Y") }}</span>
+    <span class="tz">{{ tz }}</span>
+  </div>
+  {% if clock_invalid %}
+  <div class="banner">⚠ Clock not trusted — automatic playback is OFF.
+    <a href="{{ url_for('ui.time_page') }}">Fix time</a></div>
+  {% endif %}
+  {% if authed %}
+  <nav>
+    <a href="{{ url_for('ui.dashboard') }}">Home</a>
+    <a href="{{ url_for('ui.courses') }}">Courses</a>
+    <a href="{{ url_for('ui.schedule') }}">Schedule</a>
+    <a href="{{ url_for('ui.sounds') }}">Sounds</a>
+    <a href="{{ url_for('ui.time_page') }}">Time</a>
+    <a href="{{ url_for('ui.logs') }}">Logs</a>
+    <a href="{{ url_for('ui.backup_page') }}">Backup</a>
+    <form method="post" action="{{ url_for('ui.logout') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="link">Logout</button>
+    </form>
+  </nav>
+  {% endif %}
+</header>
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='gong.js') }}"></script>
+</body>
+</html>

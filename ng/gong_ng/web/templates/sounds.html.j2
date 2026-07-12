@@ -1,0 +1,40 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Sounds &amp; volume</h2>
+<form method="post" class="card col">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset>
+    <legend>Gong</legend>
+    {% for t in tracks %}
+    <label class="toggle">
+      <input type="radio" name="gong_track" value="{{ t }}"
+             {% if s.gong_track == t %}checked{% endif %}> {{ t }}
+    </label>
+    {% endfor %}
+    <label>Volume (0–100)
+      <input type="number" name="gong_volume" min="0" max="100"
+             value="{{ s.gong_volume }}"></label>
+    <label>Gap between strikes (seconds)
+      <input type="number" name="gong_gap_seconds" min="0" max="600"
+             value="{{ s.gong_gap_seconds }}"></label>
+  </fieldset>
+  <fieldset>
+    <legend>Doha</legend>
+    <label>Play time
+      <input type="time" name="doha_time" value="{{ s.doha_time }}"></label>
+    <label>Volume (0–100)
+      <input type="number" name="doha_volume" min="0" max="100"
+             value="{{ s.doha_volume }}"></label>
+    <label>Outside course
+      <select name="no_course_doha">
+        <option value="random" {% if s.no_course_doha == "random" %}selected{% endif %}>random track</option>
+        <option value="off" {% if s.no_course_doha == "off" %}selected{% endif %}>off</option>
+        {% for i in range(1, 12) %}
+        <option value="slot:{{ i }}"
+          {% if s.no_course_doha == "slot:" ~ i %}selected{% endif %}>always track {{ i }}</option>
+        {% endfor %}
+      </select></label>
+  </fieldset>
+  <button>Save</button>
+</form>
+{% endblock %}

@@ -26,7 +26,18 @@ The **zero day** is course day 0 (arrival day). All scheduling is computed as
 matched by `(type, day_no, start_time)` where `start_time = HHMM` encoded as
 `hour*100 + minute` (matches PHP `date("Gi")`).
 
-## Layout
+## Gong-NG rewrite (branch gong-ng)
+
+`ng/` holds the next-gen appliance: one Python 3.11 daemon (`gongd` =
+scheduler + player + Flask admin UI threads), SQLite WAL, mpv/dummy audio,
+NetworkManager AP. Design: `docs/GONG-NG-DESIGN.md`; dev quickstart and status:
+`ng/README.md`. Deployment is fresh-flash + build-time seed (`ng/seed/seed.sql`,
+generated from `db/gong.sql` by `ng/tools/convert_legacy_seed.py` — regenerate
+after editing either, `tests/test_seed.py` pins them). Tests:
+`cd ng && .venv/bin/pytest`. The legacy PHP tree below stays untouched until
+the M4 pilot passes.
+
+## Layout (legacy appliance)
 
 - `app/dhamma/` → installed to `/home/dhamma` on the Pi
   - `constants.inc` — shared config + all helpers (`db_connect`, `logit`, `check_zero_day`, `play_mp3`, `kill_players`, `relay_on/off`, `doha_volume_percent`, `show_log`)

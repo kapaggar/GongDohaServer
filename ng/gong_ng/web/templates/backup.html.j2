@@ -1,0 +1,17 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Backup &amp; restore</h2>
+<div class="card">
+  <p>Download the database (courses, schedule, settings, history). Media files
+     are on the install bundle and are not included.</p>
+  <a class="button" href="{{ url_for('ui.backup_download') }}">⬇ Download backup</a>
+</div>
+<form method="post" action="{{ url_for('ui.restore') }}" class="card"
+      enctype="multipart/form-data"
+      onsubmit="return confirm('Replace ALL settings, courses and schedule with the uploaded backup?')">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>Restore from backup file
+    <input type="file" name="backup" accept=".gz,.tar.gz" required></label>
+  <button class="danger">Restore</button>
+</form>
+{% endblock %}
