@@ -47,6 +47,10 @@ sudo ./installer/install.sh --with-ap
 
 Full steps: [docs/DEPLOY.md](docs/DEPLOY.md)
 
+### First boot (unattended)
+
+Flash Pi OS, copy `boot/firstrun.sh` + the full repo onto the SD **boot** partition, wire `cmdline.txt`. Details: **[docs/FIRSTRUN.md](docs/FIRSTRUN.md)**.
+
 ---
 
 ## Repository layout
@@ -55,6 +59,10 @@ Full steps: [docs/DEPLOY.md](docs/DEPLOY.md)
 gongserver/
 ├── README.md
 ├── config.env.example          # copy → config.env (not committed)
+├── boot/
+│   ├── firstrun.sh             # complete first-boot provisioner
+│   ├── gong-firstrun.env.example
+│   └── cmdline.txt.example
 ├── app/
 │   ├── dhamma/                 # → installed to /home/dhamma
 │   │   ├── constants.inc
@@ -71,6 +79,7 @@ gongserver/
 ├── installer/install.sh        # main entrypoint
 └── docs/
     ├── DEPLOY.md
+    ├── FIRSTRUN.md             # unattended first boot
     └── OS-DELTAS.md            # what stock OS gains
 ```
 
