@@ -1,0 +1,15 @@
+# DhammaGong — install into /etc/cron.d/gongserver (no user crontab needed)
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Optional time sync when internet is available
+*/5 * * * * root /home/dhamma/check-date >/dev/null 2>&1
+
+# Activate course zero-day from calendar
+0 8,14,16 * * * root /usr/bin/php /home/dhamma/set-zero-day.php >/dev/null 2>&1
+
+# Gong poller every minute
+* * * * * root /usr/bin/php /home/dhamma/poll.php >/dev/null 2>&1
+
+# Morning doha (after 06:32 gong)
+37 6 * * * root /usr/bin/php /home/dhamma/doha.php >/dev/null 2>&1

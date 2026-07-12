@@ -1,0 +1,10 @@
+# Optional ifupdown snippet (legacy). Prefer installer dhcpcd/NetworkManager paths.
+auto lo
+iface lo inet loopback
+
+iface eth0 inet manual
+
+auto WLAN_IFACE
+iface WLAN_IFACE inet static
+    address AP_ADDRESS
+    netmask 255.255.255.0

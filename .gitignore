@@ -1,0 +1,22 @@
+# Local installer secrets
+config.env
+*.env
+!config.env.example
+
+# OS / editor noise
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs / temp
+*.log
+/tmp/
+
+# Docker local overrides
+docker-compose.override.yml

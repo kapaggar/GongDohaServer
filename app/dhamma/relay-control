@@ -1,0 +1,61 @@
+#!/usr/bin/python3
+"""GPIO amplifier relay control for DhammaGong.
+
+BOARD pin 11 (BCM 17 on most Pi headers) drives relay_1.
+Usage: relay-control on|off|play
+"""
+
+import sys
+import time
+
+PORTS = {"relay_1": 11}
+
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    print("RPi.GPIO not available — relay control disabled", file=sys.stderr)
+    sys.exit(0)
+
+
+def init_gpio():
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setwarnings(False)
+    for _k, v in PORTS.items():
+        GPIO.setup(v, GPIO.OUT)
+
+
+def clean_gpio():
+    GPIO.cleanup()
+
+
+if len(sys.argv) <= 1:
+    print("Usage: %s on|off|play" % (sys.argv[0]))
+    sys.exit(1)
+
+action = sys.argv[1].lower()
+
+if action == "on":
+    init_gpio()
+    GPIO.output(PORTS["relay_1"], False)
+    time.sleep(2)
+elif action == "off":
+    init_gpio()
+    GPIO.output(PORTS["relay_1"], True)
+    time.sleep(2)
+    clean_gpio()
+elif action == "play":
+    try:
+        while True:
+            for k, v in PORTS.items():
+                print("Turning %s on ..." % k)
+                init_gpio()
+                GPIO.output(v, False)
+                time.sleep(4)
+                print("Turning %s off ..." % k)
+                clean_gpio()
+                time.sleep(4)
+    except KeyboardInterrupt:
+        GPIO.cleanup()
+else:
+    print("Unknown action: %s" % action)
+    sys.exit(1)
