@@ -7,7 +7,13 @@
 - Network during install (ethernet strongly preferred)
 - ~1 GB free disk (media + packages)
 
-## Install
+## Option A — Unattended first boot
+
+Copy `boot/firstrun.sh`, `gong-firstrun.env`, and the full repo as `boot/gongserver/` onto the SD boot partition, then append the `systemd.run=…` fragment to `cmdline.txt`.
+
+Details: **[FIRSTRUN.md](FIRSTRUN.md)**.
+
+## Option B — Manual install (SSH after first boot)
 
 ```bash
 # On the Pi — copy this repo (USB, scp, or git clone)
