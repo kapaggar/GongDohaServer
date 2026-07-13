@@ -14,6 +14,18 @@ internet ever required. Full design: [`../docs/GONG-NG-DESIGN.md`](../docs/GONG-
 - **Not built yet (M3):** the offline install bundle builder; `firstboot/firstrun.sh`
   documents the target flow but has not run on a real card.
 
+## Screenshots
+
+Admin UI running against the Docker demo (dummy audio, 10 Day course active).
+
+| | |
+|---|---|
+| **Dashboard** — course day, toggles, next events, test buttons<br><img src="screenshots/dashboard.png" width="400"> | **Courses** — the seeded Dhamma Sudha calendar<br><img src="screenshots/courses.png" width="400"> |
+| **Schedule editor** — per-day gong times<br><img src="screenshots/schedule-editor.png" width="400"> | **Day picker** — explicit days override the default pattern<br><img src="screenshots/schedule-day-picker.png" width="400"> |
+| **Sounds & volume** — track, volumes, doha time and outside-course mode<br><img src="screenshots/sounds-volume.png" width="400"> | **Time** — set clock, RTC status<br><img src="screenshots/time-set-clock.png" width="400"> |
+| **Play history** — every fire logged with result<br><img src="screenshots/logs-play-history.png" width="400"> | **Missed events** — late fires are skipped, never blasted late<br><img src="screenshots/logs-missed-events.png" width="400"> |
+| **Backup & restore** — one-file DB download<br><img src="screenshots/backup-restore.png" width="400"> | |
+
 ## Develop on a Mac/PC (no hardware)
 
 ```bash
