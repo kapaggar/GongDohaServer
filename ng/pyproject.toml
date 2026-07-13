@@ -22,6 +22,9 @@ gongctl = "gong_ng.ctl:main"
 [tool.setuptools.packages.find]
 include = ["gong_ng*"]
 
+[tool.setuptools.package-data]
+gong_ng = ["web/templates/*.j2", "web/static/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

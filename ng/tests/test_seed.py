@@ -59,6 +59,28 @@ def test_checked_in_seed_matches_converter(converted):
         "seed/seed.sql drifted — re-run ng/tools/convert_legacy_seed.py")
 
 
+def test_courses_seed_applies_and_matches_legacy_file():
+    """ng/seed/courses-sudha-*.sql must stay in lockstep with the legacy
+    db/courses-sudha-*.sql (same (type, date) pairs, new schema)."""
+    import re
+    from gong_ng import db
+    ng_file = NG / "seed" / "courses-sudha-2026-2027.sql"
+    legacy_file = REPO / "db" / "courses-sudha-2026-2027.sql"
+    pair = re.compile(r"\((\d+),\s*'(\d{4}-\d{2}-\d{2})'\)")
+    legacy = set(pair.findall(legacy_file.read_text()))
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(db.SCHEMA)
+    conn.executescript((NG / "seed" / "seed.sql").read_text())
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.executescript(ng_file.read_text())
+    rows = set(
+        (str(t), d) for t, d in
+        conn.execute("SELECT course_type_id, start_date FROM courses")
+    )
+    assert rows == legacy
+    assert len(rows) == 39
+
+
 def test_seed_applies_cleanly_and_respects_unique_index(converted):
     from gong_ng import db
     conn = sqlite3.connect(":memory:")
