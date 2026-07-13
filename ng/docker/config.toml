@@ -1,0 +1,14 @@
+# Container config: dummy audio (decode nothing, just timing), UI on :80.
+[audio]
+player = "dummy"
+dummy_seconds = 2.0   # each simulated gong strike "plays" for 2s
+
+[relay]
+enabled_hw = false
+
+[time]
+timezone = "Asia/Kolkata"
+fire_grace_seconds = 120
+
+[web]
+listen = "0.0.0.0:80"

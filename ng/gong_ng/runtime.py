@@ -58,6 +58,14 @@ def ensure_data_dir(config: Config) -> None:
     seed_sql = (seed_dir / "seed.sql").read_text() if seed_dir else None
     conn = db.connect(config.db_path)
     db.init_db(conn, seed_sql)
+    if seed_dir:
+        # Centre course calendar (e.g. courses-sudha-*.sql): applied only on
+        # a virgin courses table; the UI owns the calendar afterwards.
+        n = conn.execute("SELECT COUNT(*) FROM courses").fetchone()[0]
+        if n == 0:
+            for f in sorted(seed_dir.glob("courses*.sql")):
+                conn.executescript(f.read_text())
+                log.info("seeded course calendar from %s", f.name)
     conn.close()
 
     if seed_dir and not config.manifest_path.is_file():
