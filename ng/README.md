@@ -57,6 +57,31 @@ firstboot/          firstrun.sh + gong-firstboot.toml.example (M3)
 tests/              pytest suite; test_seed.py pins seed.sql to db/gong.sql
 ```
 
+## Deshna responder (fetch.php compat)
+
+gongd also answers for the legacy **Deshna** appliance — the course-audio
+jukebox queried by the Deshna Android app (dhamma.org.deshna). The contract
+was reconstructed from the decompiled app (dn3.1) since the original
+fetch.php is lost:
+
+```
+GET /fetch.php?a=<track_id>|<course_lang_code>|<ip_hash>|<selected_lang>
+     ip_hash = md5("<client-ip>-dowifi")        # same weak token as legacy
+  -> 200 audio/mpeg (the file), 403 bad hash, 404 unknown id / missing media
+```
+
+- `seed/deshna-seed.sql` — 30 courses + 3,716 schedule rows, the union of the
+  Deshna Pi's MySQL dump and the app's bundled DB (app revision wins on
+  conflicts; ids are the contract with the app — never renumber). Regenerate:
+  `tools/convert_deshna_seed.py --dump deshna.sql --apk-db assets/deshna.db`.
+- Audio library goes at `/var/lib/gong/media/deshna/<filename>` (paths as in
+  the schedule, e.g. `10-day/Hi-En/D01_0800_GS_Hi-En_10d.mp3`); the endpoint
+  404s harmlessly until media is copied there.
+- Reconstruction caveat: for `multiple`-language tracks, `selected_lang`
+  picks the sibling row with that lang code — behaviour for the common
+  (single-language) case is exact, this branch is best-effort.
+- Point the app's server setting at the gong Pi (legacy default 10.10.0.100).
+
 ## Key invariants (enforced by tests)
 
 - Doha selection is byte-for-byte the legacy algorithm (`test_doha.py`).

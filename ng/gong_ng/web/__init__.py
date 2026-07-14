@@ -9,7 +9,7 @@ from .. import db
 from ..model import Settings
 from ..runtime import AppContext
 
-OPEN_ENDPOINTS = {"ui.login", "api.healthz", "static"}
+OPEN_ENDPOINTS = {"ui.login", "api.healthz", "static", "deshna.fetch"}
 
 
 def create_app(ctx: AppContext) -> Flask:
@@ -25,10 +25,12 @@ def create_app(ctx: AppContext) -> Flask:
 
     from . import auth
     from .routes_api import api
+    from .routes_deshna import deshna
     from .routes_ui import ui
 
     app.register_blueprint(ui)
     app.register_blueprint(api)
+    app.register_blueprint(deshna)
 
     @app.before_request
     def _setup():
