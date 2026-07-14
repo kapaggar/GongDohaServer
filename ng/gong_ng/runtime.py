@@ -66,7 +66,13 @@ def ensure_data_dir(config: Config) -> None:
             for f in sorted(seed_dir.glob("courses*.sql")):
                 conn.executescript(f.read_text())
                 log.info("seeded course calendar from %s", f.name)
+        deshna_seed = seed_dir / "deshna-seed.sql"
+        n = conn.execute("SELECT COUNT(*) FROM deshna_schedule").fetchone()[0]
+        if n == 0 and deshna_seed.is_file():
+            conn.executescript(deshna_seed.read_text())
+            log.info("seeded deshna schedule from %s", deshna_seed.name)
     conn.close()
+    config.deshna_dir.mkdir(parents=True, exist_ok=True)
 
     if seed_dir and not config.manifest_path.is_file():
         manifest = seed_dir / "doha-manifest.json"

@@ -51,6 +51,30 @@ CREATE TABLE IF NOT EXISTS play_log (
   detail    TEXT NOT NULL DEFAULT ''
 );
 
+-- Deshna responder (course-audio fetch for the Deshna Android app).
+-- Ids are the contract with the app's bundled DB — never renumber.
+CREATE TABLE IF NOT EXISTS deshna_courses (
+  id       INTEGER PRIMARY KEY,
+  name     TEXT NOT NULL,
+  folder   TEXT,
+  days     INTEGER NOT NULL DEFAULT 0,
+  priority INTEGER NOT NULL DEFAULT 0,
+  enabled  INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS deshna_schedule (
+  id         INTEGER PRIMARY KEY,
+  track      TEXT,
+  course_id  INTEGER NOT NULL DEFAULT 0,
+  day_no     INTEGER NOT NULL DEFAULT 0,
+  filename   TEXT NOT NULL,
+  start_time INTEGER NOT NULL DEFAULT 0,   -- HHMM
+  multiple   INTEGER NOT NULL DEFAULT 0,
+  lang       TEXT NOT NULL DEFAULT '',
+  valid_till INTEGER NOT NULL DEFAULT 0,   -- HHMM
+  auto_play  INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sched_unique
   ON schedule_events (COALESCE(course_type_id, -1), COALESCE(day_no, -1), time_local);
 CREATE INDEX IF NOT EXISTS idx_playlog_ts ON play_log (ts_utc);

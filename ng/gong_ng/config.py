@@ -67,6 +67,10 @@ class Config:
         return self.doha_dir / "manifest.json"
 
     @property
+    def deshna_dir(self) -> Path:
+        return self.data_dir / "media" / "deshna"
+
+    @property
     def secret_key_path(self) -> Path:
         return self.data_dir / "secret_key"
 
