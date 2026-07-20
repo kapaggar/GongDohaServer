@@ -136,6 +136,9 @@ The **Deshna tab** shows the IP to enter in the app, a media-status counter
 one-click fetch test + copyable curl, the directory layout, install steps, and
 a troubleshooting checklist.
 
+Manual validation plan (endpoint, tab, USB auto-mount/copy):
+[`../docs/DESHNA-QA.md`](../docs/DESHNA-QA.md).
+
 ## Key invariants (enforced by tests)
 
 - Doha selection is byte-for-byte the legacy algorithm (`test_doha.py`).
