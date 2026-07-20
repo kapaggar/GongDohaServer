@@ -1,0 +1,135 @@
+#!/bin/bash
+# Gong-NG USB media helper: attach / copy / eject a Deshna audio library from a
+# USB stick to /var/lib/gong/media/deshna.
+#
+# Two ways media gets onto the appliance (design: Deshna media, M3):
+#   attach  (udev/systemd, root)  — insert a USB whose root has a deshna/ dir
+#                                   and it is bind-mounted live over the media
+#                                   dir, so tracks are served straight off the
+#                                   stick (transient; gone when unplugged).
+#   copy    (UI/CLI, sudo)         — rsync that same deshna/ onto the SD card,
+#                                   overwriting old files and keeping extras,
+#                                   so the update survives removal.
+#   eject   (UI/CLI, sudo)         — unbind + unmount cleanly before unplugging.
+#   status  (UI/CLI, sudo/any)     — JSON describing the attached stick.
+#
+# attach/detach are root-only (systemd runs them from the udev event). Only
+# copy/eject/status are whitelisted for the gong user in sudoers; none take a
+# filesystem path, and the device name is regex-validated, so there is no way
+# to point this at an arbitrary mount.
+set -euo pipefail
+
+DESHNA_DIR="${GONG_DESHNA_DIR:-/var/lib/gong/media/deshna}"
+RUNDIR="${GONG_USB_RUNDIR:-/run/gong}"
+STAGE="$RUNDIR/usb"
+STATUS="$RUNDIR/usb-media.json"
+OWNER="${GONG_MEDIA_OWNER:-gong:gong}"
+
+die() { echo "gong-usb-media: $*" >&2; exit 1; }
+
+valid_dev() {
+    # only real USB partition nodes: sda1, sdb2, ... never the SD card (mmcblk)
+    [[ "$1" =~ ^sd[a-z][0-9]+$ ]] || die "refusing suspicious device '$1'"
+}
+
+count_files() { find "$1" -type f 2>/dev/null | wc -l | tr -d ' '; }
+
+bound_source() {
+    # print the device currently bind-mounted over the media dir, or nothing
+    findmnt -no SOURCE --target "$DESHNA_DIR" 2>/dev/null \
+        | sed -n 's#.*/usb/\(sd[a-z][0-9]*\)/deshna.*#\1#p' | head -n1
+}
+
+write_status() {  # write_status <attached-dev|""> <bound true|false> <mode> [note]
+    local dev="$1" bound="$2" mode="$3" note="${4:-}" files=0 label=""
+    if [ -n "$dev" ] && [ -d "$STAGE/$dev/deshna" ]; then
+        files=$(count_files "$STAGE/$dev/deshna")
+        label=$(lsblk -no LABEL "/dev/$dev" 2>/dev/null | head -n1 || true)
+    fi
+    mkdir -p "$RUNDIR"
+    cat > "$STATUS" <<EOF
+{"attached": $( [ -n "$dev" ] && echo "\"$dev\"" || echo null ),
+ "label": "$label",
+ "files": $files,
+ "bound": $bound,
+ "mode": "$mode",
+ "note": "$note",
+ "at": "$(date -Is 2>/dev/null || date)"}
+EOF
+    chmod 0644 "$STATUS"
+}
+
+clear_status() { rm -f "$STATUS"; }
+
+cmd_attach() {  # <dev>  (root, from systemd)
+    local dev="$1"; valid_dev "$dev"
+    local mp="$STAGE/$dev"
+    mkdir -p "$mp"
+    mountpoint -q "$mp" || mount -o ro,nosuid,nodev "/dev/$dev" "$mp" \
+        || { rmdir "$mp" 2>/dev/null || true; exit 0; }  # unreadable fs: ignore
+    if [ ! -d "$mp/deshna" ]; then          # not a Deshna stick — let it be
+        umount "$mp" 2>/dev/null || true
+        rmdir "$mp" 2>/dev/null || true
+        exit 0
+    fi
+    # auto-serve straight off the stick, unless another stick is already bound
+    if [ -z "$(bound_source)" ]; then
+        mkdir -p "$DESHNA_DIR"
+        mount --bind "$mp/deshna" "$DESHNA_DIR"
+        write_status "$dev" true mounted "serving live from USB"
+        echo "attached $dev: bind-mounted $(count_files "$mp/deshna") files over $DESHNA_DIR"
+    else
+        write_status "$dev" false available "another USB is already mounted; copy or eject it first"
+        echo "attached $dev: staged (another USB already mounted)"
+    fi
+}
+
+cmd_detach() {  # <dev>  (root, from systemd on unplug)
+    local dev="$1"; valid_dev "$dev"
+    if [ "$(bound_source)" = "$dev" ]; then
+        umount "$DESHNA_DIR" 2>/dev/null || umount -l "$DESHNA_DIR" 2>/dev/null || true
+    fi
+    umount "$STAGE/$dev" 2>/dev/null || umount -l "$STAGE/$dev" 2>/dev/null || true
+    rmdir "$STAGE/$dev" 2>/dev/null || true
+    [ "$(bound_source)" = "$dev" ] || clear_status
+    echo "detached $dev"
+}
+
+pick_dev() {  # echo the dev to act on: explicit arg, else the one on record
+    if [ -n "${1:-}" ]; then echo "$1"; return; fi
+    findmnt -rno TARGET 2>/dev/null | sed -n "s#^$STAGE/\(sd[a-z][0-9]*\)\$#\1#p" | head -n1
+}
+
+cmd_copy() {  # [<dev>]  (sudo, from UI/CLI) — persist the stick onto the SD card
+    local dev; dev=$(pick_dev "${1:-}")
+    [ -n "$dev" ] || die "no USB attached to copy from"
+    valid_dev "$dev"
+    local src="$STAGE/$dev/deshna"
+    [ -d "$src" ] || die "USB $dev has no deshna/ directory staged"
+    # unbind first so we write to the real SD dir, not back onto the USB
+    [ "$(bound_source)" = "$dev" ] && { umount "$DESHNA_DIR" 2>/dev/null \
+        || umount -l "$DESHNA_DIR" 2>/dev/null || true; }
+    mkdir -p "$DESHNA_DIR"
+    echo "copying $(count_files "$src") files from USB $dev -> $DESHNA_DIR ..."
+    rsync -a --no-owner --no-group "$src"/ "$DESHNA_DIR"/
+    chown -R "$OWNER" "$DESHNA_DIR" 2>/dev/null || true
+    write_status "$dev" false copied "copied onto SD card ($(count_files "$DESHNA_DIR") files now stored)"
+    echo "copy complete: $(count_files "$DESHNA_DIR") files now in $DESHNA_DIR"
+}
+
+cmd_eject() {  # [<dev>]  (sudo, from UI/CLI)
+    local dev; dev=$(pick_dev "${1:-}")
+    [ -n "$dev" ] || { clear_status; echo "nothing to eject"; return; }
+    cmd_detach "$dev"
+}
+
+cmd_status() { cat "$STATUS" 2>/dev/null || echo '{"attached": null}'; }
+
+case "${1:-}" in
+    attach) cmd_attach "${2:-}";;
+    detach) cmd_detach "${2:-}";;
+    copy)   cmd_copy   "${2:-}";;
+    eject)  cmd_eject  "${2:-}";;
+    status) cmd_status;;
+    *) die "usage: gong-usb-media {attach|detach|copy|eject|status} [device]";;
+esac

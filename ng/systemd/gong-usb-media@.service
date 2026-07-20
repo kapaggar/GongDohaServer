@@ -1,0 +1,12 @@
+[Unit]
+Description=Attach USB Deshna media %i
+# %i is the kernel device name (e.g. sda1). Bound to the device unit so it
+# stops if the stick vanishes without a clean remove event.
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/gong-ng/bin/gong-usb-media attach %i
+ExecStop=/opt/gong-ng/bin/gong-usb-media detach %i

@@ -1,3 +1,6 @@
-# Gong-NG: the single privileged operation available to the app user.
+# Gong-NG: the privileged operations available to the app user.
 # Install as /etc/sudoers.d/gong-ng (mode 0440).
 gong ALL=(root) NOPASSWD: /opt/gong-ng/bin/gong-settime
+# USB Deshna media: copy stick onto the SD card, eject it, read its status.
+# attach/detach are NOT listed — only udev/systemd (root) run those.
+gong ALL=(root) NOPASSWD: /opt/gong-ng/bin/gong-usb-media copy, /opt/gong-ng/bin/gong-usb-media copy sd[a-z][0-9]*, /opt/gong-ng/bin/gong-usb-media eject, /opt/gong-ng/bin/gong-usb-media eject sd[a-z][0-9]*, /opt/gong-ng/bin/gong-usb-media status

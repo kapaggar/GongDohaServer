@@ -66,7 +66,8 @@ apt-get purge -y dnsmasq 2>/dev/null || true
 id gong >/dev/null 2>&1 || useradd -r -m -d /var/lib/gong -s /usr/sbin/nologin gong
 usermod -aG audio,gpio,systemd-journal gong
 install -d -o gong -g gong -m 0750 /var/lib/gong
-install -d -o gong -g gong /var/lib/gong/media/gongs /var/lib/gong/media/doha
+install -d -o gong -g gong /var/lib/gong/media/gongs /var/lib/gong/media/doha \
+    /var/lib/gong/media/deshna
 
 # --- code + venv from vendored wheels ---------------------------------------
 rm -rf /opt/gong-ng
@@ -122,6 +123,11 @@ systemctl enable nftables
 install -m 0440 /opt/gong-ng/os/sudoers.d-gong /etc/sudoers.d/gong-ng
 install -m 0644 /opt/gong-ng/systemd/gongd.service /etc/systemd/system/
 install -m 0644 /opt/gong-ng/systemd/gong-firstboot.service /etc/systemd/system/
+# USB Deshna media auto-mount (udev event -> templated helper service)
+install -m 0644 /opt/gong-ng/systemd/gong-usb-media@.service /etc/systemd/system/
+install -m 0644 /opt/gong-ng/systemd/gong-usb-media-detach@.service /etc/systemd/system/
+install -m 0644 /opt/gong-ng/os/udev/99-gong-usb-media.rules /etc/udev/rules.d/
+udevadm control --reload-rules 2>/dev/null || true
 systemctl daemon-reload
 systemctl enable gongd gong-firstboot
 

@@ -12,7 +12,7 @@ from flask import (Blueprint, flash, g, redirect, render_template, request,
                    send_file, session, url_for)
 
 from .. import clock as clockmod
-from .. import jobs, model
+from .. import jobs, model, usbmedia
 from ..scheduler import upcoming_occurrences
 from ..timeset import set_system_time
 from . import auth
@@ -205,6 +205,45 @@ def logs():
     return render_template("logs.html.j2",
                            plays=model.recent_plays(g.conn, 50),
                            journal=journal)
+
+
+@ui.post("/deshna/usb")
+def deshna_usb():
+    action = request.form.get("do", "")
+    if action == "copy":
+        ok, msg = usbmedia.copy()
+    elif action == "eject":
+        ok, msg = usbmedia.eject()
+    else:
+        ok, msg = False, "Unknown action"
+    flash(msg)
+    return redirect(url_for("ui.deshna_page"))
+
+
+@ui.get("/deshna")
+def deshna_page():
+    cfg = g.ctx.config
+    rows = g.conn.execute(
+        "SELECT id, filename FROM deshna_schedule ORDER BY id").fetchall()
+    root = cfg.deshna_dir
+    disk: set[str] = set()
+    for ext in ("*.mp3", "*.mp4"):
+        if root.is_dir():
+            disk |= {str(p.relative_to(root)) for p in root.rglob(ext)}
+    have = [r for r in rows if r["filename"] in disk]
+    missing_sample = [r["filename"] for r in rows
+                      if r["filename"] not in disk][:5]
+    return render_template(
+        "deshna.html.j2",
+        host=request.host.split(":")[0],
+        host_with_port=request.host,
+        total=len(rows),
+        found=len(have),
+        missing_sample=missing_sample,
+        test_row=have[0] if have else None,
+        media_dir=str(root),
+        usb=usbmedia.status(),
+    )
 
 
 # ------------------------------------------------------------------ backup

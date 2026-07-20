@@ -66,21 +66,75 @@ fetch.php is lost:
 
 ```
 GET /fetch.php?a=<track_id>|<course_lang_code>|<ip_hash>|<selected_lang>
-     ip_hash = md5("<client-ip>-dowifi")        # same weak token as legacy
-  -> 200 audio/mpeg (the file), 403 bad hash, 404 unknown id / missing media
+  -> 200 audio/mpeg (the file), 404 unknown id / missing media
 ```
+
+The legacy ip-hash token is accepted but **not validated** — the endpoint
+serves any client on the network; the AP's WPA2 passphrase is the boundary.
 
 - `seed/deshna-seed.sql` — 30 courses + 3,716 schedule rows, the union of the
   Deshna Pi's MySQL dump and the app's bundled DB (app revision wins on
   conflicts; ids are the contract with the app — never renumber). Regenerate:
   `tools/convert_deshna_seed.py --dump deshna.sql --apk-db assets/deshna.db`.
-- Audio library goes at `/var/lib/gong/media/deshna/<filename>` (paths as in
-  the schedule, e.g. `10-day/Hi-En/D01_0800_GS_Hi-En_10d.mp3`); the endpoint
-  404s harmlessly until media is copied there.
 - Reconstruction caveat: for `multiple`-language tracks, `selected_lang`
   picks the sibling row with that lang code — behaviour for the common
   (single-language) case is exact, this branch is best-effort.
 - Point the app's server setting at the gong Pi (legacy default 10.10.0.100).
+
+### Media library layout
+
+The audio lives under `/var/lib/gong/media/deshna/`, one folder per course
+type (the `folder` value from the schedule) plus two shared folders. Filenames
+must match `deshna_schedule.filename` byte-for-byte — that is exactly what the
+app requests. The endpoint 404s harmlessly until media is present.
+
+```
+/var/lib/gong/media/deshna/
+├── 10-day/  10day-spl/  10day-exec/     Hi-En/  Discourses/Hindi|English/
+├── 20-day/  30-day/  60-day/            Hi-En/  Discourses/Hindi/
+├── 45-day-10a/  45-day-15a/  45-day-tri/   Hi-En/  Discourses/Hindi/
+├── 1-day/  2-day/  3-day/  3-day-full/   Hi-En/  Discourses/
+├── stp/  STP/                           Satipatthana — BOTH spellings appear
+├── teenager/  gratitude/  group-sittings/   Hi-En/  Discourses/
+├── cc1d/  cc2d/  cc3d/                   Hi-En/   (Children's courses)
+├── children-1-day-english/  En/         *.mp4
+├── children-1-day-hindi/    Hi/         *.mp4
+├── children-3-day-hindi/    Hi/         *.mp4 + *.mp3
+├── common-general/                      shared chants/suttas, *.mp3 flat
+└── common-lang/             Hi-En/      shared welcome/closing tracks
+```
+
+Naming inside a language folder:
+`D<day>_<HHMM>_<Track>_<Lang>_<Course>.mp3`, e.g.
+`10-day/Hi-En/D01_0800_GS_Hi-En_10d.mp3`. 3,281 files are `.mp3`; the 55
+`.mp4` files are all under the three `children-*` folders. `common-general/`
+and `common-lang/` are not course folders — they are shared prefixes and must
+sit as siblings. **`stp/` and `STP/` both appear as literal path prefixes; on
+case-sensitive ext4 keep both (or `ln -s stp STP`) or one course 404s.**
+
+### Getting media onto the appliance
+
+Two paths, both driven from the **Deshna tab** in the admin UI:
+
+- **USB auto-mount.** Plug in a stick whose root has a `deshna/` folder: a
+  udev rule (`os/udev/99-gong-usb-media.rules`) starts
+  `gong-usb-media@<dev>.service`, which bind-mounts `deshna/` live over the
+  media dir — tracks are served straight off the stick until it is ejected.
+- **Copy onto the Pi.** The tab's *Copy onto the Pi* button (or
+  `sudo gong-usb-media copy`) rsyncs the stick into the SD card's media dir,
+  overwriting changed files and adding new ones without deleting extras, so the
+  update survives removal. *Eject* unbinds and unmounts cleanly.
+
+`bin/gong-usb-media` is the helper (attach/detach are root-only via systemd;
+`copy`/`eject`/`status` are sudo-whitelisted for the `gong` user, take no
+paths, and regex-validate the device name). By hand over SSH it is just
+`rsync -av /media/usb/deshna/ /var/lib/gong/media/deshna/` then
+`sudo chown -R gong:gong /var/lib/gong/media/deshna`.
+
+The **Deshna tab** shows the IP to enter in the app, a media-status counter
+(files on disk vs schedule), attached-USB status with Copy/Eject buttons, a
+one-click fetch test + copyable curl, the directory layout, install steps, and
+a troubleshooting checklist.
 
 ## Key invariants (enforced by tests)
 

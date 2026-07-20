@@ -1,0 +1,8 @@
+[Unit]
+Description=Detach USB Deshna media %i
+# Fired by the udev "remove" rule: the device unit is already gone, so the
+# attach service's ExecStop cannot run reliably. This unbinds and unmounts.
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gong-ng/bin/gong-usb-media detach %i
