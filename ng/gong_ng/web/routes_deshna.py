@@ -5,10 +5,11 @@ audio from its local server as:
 
     GET /fetch.php?a=<track_id>|<course_lang_code>|<ip_hash>|<selected_lang>
 
-where ip_hash = md5("<client-ip>-dowifi") — the same weak anti-hotlink token
-the legacy PHP checked; kept verbatim for compatibility (the app cannot do
-cookies/PIN login). track_id resolves via deshna_schedule (ids seeded from
-the original appliance dump) to a file under <data_dir>/media/deshna/.
+The legacy ip_hash token (md5("<client-ip>-dowifi")) is accepted but NOT
+validated — the endpoint serves anyone on the network (owner's decision,
+2026-07-14: the AP's WPA2 passphrase is the boundary). track_id resolves via
+deshna_schedule (ids seeded from the original appliance dump) to a file
+under <data_dir>/media/deshna/.
 
 Language params: schedule rows are already language-specific (the app picks
 the right row from its own DB), so the common path ignores them. For rows
@@ -57,14 +58,7 @@ def fetch():
     if not parts or not parts[0].isdigit():
         abort(400)
     track_id = int(parts[0])
-    supplied_hash = parts[2] if len(parts) > 2 else ""
     selected_lang = parts[3] if len(parts) > 3 else ""
-
-    remote = request.remote_addr or ""
-    if supplied_hash != ip_hash(remote):
-        log.warning("deshna fetch: bad ip hash from %s (track %s)",
-                    remote, track_id)
-        abort(403)
 
     row = resolve_track(g.conn, track_id, selected_lang)
     if row is None:
@@ -76,5 +70,5 @@ def fetch():
     if not path.is_file():
         log.warning("deshna fetch: media missing: %s", row["filename"])
         abort(404)
-    log.info("deshna fetch: %s -> %s", remote, row["filename"])
+    log.info("deshna fetch: %s -> %s", request.remote_addr, row["filename"])
     return send_file(path, mimetype="audio/mpeg", conditional=True)

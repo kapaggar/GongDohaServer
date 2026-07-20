@@ -1,0 +1,149 @@
+{% extends "base.html.j2" %}
+{% block content %}
+<h2>Deshna</h2>
+
+<div class="card">
+  <h3>1 · Point the Deshna app at this server</h3>
+  <p>On the teacher's tablet, open the <b>Deshna</b> app →
+     <b>Settings</b> → <b>Server</b> and enter:</p>
+  <p class="bigtime">{{ host }}</p>
+  <ul>
+    <li>The tablet must be on the <b>same Wi-Fi</b> as this device
+        (the DhammaGong network).</li>
+    <li>The app uses port 80 — no port number is needed
+        {% if host_with_port != host %}<b>(you are viewing this page on
+        {{ host_with_port }}; a real tablet needs the plain IP with the
+        server on port 80)</b>{% endif %}.</li>
+    <li>The app replaces its old default (10.10.0.100) once saved.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>2 · Media status</h3>
+  <p>Library folder: <tt>{{ media_dir }}</tt></p>
+  {% if found == 0 %}
+  <p>⚠ <b>No media found.</b> Tracks will 404 until the audio library is
+     copied in (see below).</p>
+  {% else %}
+  <p><b>{{ found }}</b> of <b>{{ total }}</b> schedule tracks have their
+     file on disk.</p>
+  {% endif %}
+  {% if missing_sample and found > 0 %}
+  <p>First missing files:</p>
+  <ul>{% for f in missing_sample %}<li><tt>{{ f }}</tt></li>{% endfor %}</ul>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>3 · USB stick</h3>
+  {% if usb and usb.attached %}
+    {% if usb.bound %}
+    <p>✅ <b>USB {{ usb.attached }}</b>{% if usb.label %} ({{ usb.label }}){% endif %}
+       is plugged in and its <b>{{ usb.files }}</b> files are being served
+       <b>live from the stick</b> right now.</p>
+    <p>To make this permanent (so it keeps working after you unplug), copy it
+       onto the Pi. To remove the stick safely, eject first.</p>
+    {% else %}
+    <p>🔌 <b>USB {{ usb.attached }}</b>{% if usb.label %} ({{ usb.label }}){% endif %}
+       is plugged in ({{ usb.files }} files).
+       {% if usb.note %}<i>{{ usb.note }}</i>{% endif %}</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('ui.deshna_usb') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button name="do" value="copy">⬇ Copy onto the Pi (update stored media)</button>
+    </form>
+    <form method="post" action="{{ url_for('ui.deshna_usb') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button name="do" value="eject">⏏ Eject</button>
+    </form>
+    <p><small>Copy overwrites files that changed and adds new ones; it never
+       deletes tracks already on the Pi.</small></p>
+  {% else %}
+    <p>No Deshna USB detected. Plug in a stick that has a <tt>deshna/</tt>
+       folder at its root — the Pi mounts it automatically and starts serving
+       from it, and this card will offer a one-click <b>Copy onto the Pi</b>.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>4 · Test the responder</h3>
+  {% if test_row %}
+  <p><a class="button" href="/fetch.php?a={{ test_row.id }}">▶ Fetch track
+     {{ test_row.id }}</a> <small>({{ test_row.filename }})</small></p>
+  <p>Or from any computer on the network:</p>
+  <pre>curl -v "http://{{ host_with_port }}/fetch.php?a={{ test_row.id }}" -o test.mp3</pre>
+  {% else %}
+  <p>No fetchable track yet — copy media first, then this card shows a
+     one-click test.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>5 · The media library layout</h3>
+  <p>The library lives under <tt>{{ media_dir }}/</tt>. One folder per course
+     type (the <tt>folder</tt> value from the schedule), plus two shared
+     folders. The filenames must match the schedule exactly — they are what
+     the app asks for.</p>
+  <pre>{{ media_dir }}/
+├── 10-day/         Hi-En/  Discourses/Hindi|English/
+├── 20-day/  30-day/  60-day/     Hi-En/  Discourses/Hindi/
+├── 45-day-10a/ 45-day-15a/ 45-day-tri/  Hi-En/  Discourses/Hindi/
+├── 1-day/  2-day/  3-day/  3-day-full/  Hi-En/  Discourses/
+├── 10day-spl/  10day-exec/          Hi-En/  Discourses/
+├── stp/   STP/     (Satipatthana — both spellings are used)
+├── teenager/  gratitude/  group-sittings/     Hi-En/  Discourses/
+├── cc1d/  cc2d/  cc3d/               Hi-En/   (Children's courses)
+├── children-1-day-english/  En/     *.mp4
+├── children-1-day-hindi/    Hi/     *.mp4
+├── children-3-day-hindi/    Hi/     *.mp4 + *.mp3
+├── common-general/     shared chants &amp; suttas — *.mp3 directly, no subfolder
+└── common-lang/        shared welcome/closing tracks — Hi-En/</pre>
+  <p>File naming inside a language folder:
+     <tt>D&lt;day&gt;_&lt;HHMM&gt;_&lt;Track&gt;_&lt;Lang&gt;_&lt;Course&gt;.mp3</tt>,
+     e.g. <tt>10-day/Hi-En/D01_0800_GS_Hi-En_10d.mp3</tt>. Most files are
+     <tt>.mp3</tt>; only the children's courses use <tt>.mp4</tt>.</p>
+  <p><b>Note on <tt>stp/</tt> vs <tt>STP/</tt>:</b> the schedule references
+     both spellings for Satipatthana content. Linux is case-sensitive, so keep
+     both folders (or symlink one to the other:
+     <tt>ln -s stp {{ media_dir }}/STP</tt>) or one course's tracks will 404.</p>
+</div>
+
+<div class="card">
+  <h3>6 · Installing the media library (Pi SD card)</h3>
+  <p>Easiest: use the USB card above — plug in a stick with a <tt>deshna/</tt>
+     folder and press <b>Copy onto the Pi</b>. To do it by hand over SSH:</p>
+  <ol>
+    <li>Plug the Deshna USB disk into the Pi.</li>
+    <li>Copy the course folders into <tt>{{ media_dir }}/</tt> keeping the
+        layout above exactly:<br>
+        <tt>rsync -av /media/usb/deshna/ {{ media_dir }}/</tt></li>
+    <li>Fix ownership: <tt>sudo chown -R gong:gong {{ media_dir }}</tt></li>
+    <li>Reload this page — the counter above should show the files.</li>
+  </ol>
+  <p>The library is large (tens of GB): use a big SD card, or leave the files
+     on the USB stick and let the auto-mount serve them live.</p>
+</div>
+
+<div class="card">
+  <h3>7 · Troubleshooting</h3>
+  <ul>
+    <li><b>App says download failed / no sound</b> — is the tablet on the
+        DhammaGong Wi-Fi? Is the server IP above entered in the app?</li>
+    <li><b>Some tracks play, others fail</b> — those files are missing on
+        disk; check the "first missing files" list above and the Logs page
+        (each failed fetch is logged with its filename).</li>
+    <li><b>One whole course fails (Satipatthana)</b> — the <tt>stp/</tt> and
+        <tt>STP/</tt> folders are case-sensitive; make sure both exist.</li>
+    <li><b>Nothing plays at all</b> — test with the curl command above from
+        a laptop. 404 = file/track missing; connection refused = wrong IP
+        or the service is down (<tt>sudo systemctl status gongd</tt>).</li>
+    <li><b>Everything 404s after reinstall</b> — media was not copied, or
+        ownership is wrong (<tt>sudo chown -R gong:gong {{ media_dir }}</tt>).</li>
+    <li><b>USB not detected</b> — the stick must have a folder literally named
+        <tt>deshna</tt> at its root, and be formatted FAT/exFAT/ext4.
+        Check <tt>sudo journalctl -u 'gong-usb-media@*'</tt>.</li>
+    <li><b>App worked yesterday, not today</b> — check disk space
+        (<tt>df -h</tt>) and that the USB disk (if used) is still plugged in.</li>
+  </ul>
+</div>
+{% endblock %}

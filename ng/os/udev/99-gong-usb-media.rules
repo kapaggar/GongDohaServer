@@ -1,0 +1,8 @@
+# Gong-NG: when a USB stick partition appears, hand it to gong-usb-media via a
+# templated systemd service (udev must not run long-lived work itself). The
+# service checks for a deshna/ dir and bind-mounts it over the media dir; on
+# removal it unmounts. Only USB block partitions match — the SD card (mmcblk)
+# never does.
+# Install as /etc/udev/rules.d/99-gong-usb-media.rules
+ACTION=="add",    SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{DEVTYPE}=="partition", TAG+="systemd", ENV{SYSTEMD_WANTS}+="gong-usb-media@%k.service"
+ACTION=="remove", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{DEVTYPE}=="partition", RUN+="/bin/systemctl --no-block start gong-usb-media-detach@%k.service"

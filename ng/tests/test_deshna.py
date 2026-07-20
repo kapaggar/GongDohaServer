@@ -29,8 +29,11 @@ CLIENT_HASH = ip_hash("127.0.0.1")  # Flask test client remote addr
 
 @pytest.fixture
 def app(config, rec_player):
+    from gong_ng.model import Settings
+    from gong_ng.web.auth import hash_pin
     conn = db.connect(config.db_path)
     conn.executescript((NG / "seed" / "deshna-seed.sql").read_text())
+    Settings(conn).set("admin_pin_hash", hash_pin("4321"))
     conn.close()
     media = config.deshna_dir / Path(TRACK1_FILE).parent
     media.mkdir(parents=True)
@@ -86,9 +89,17 @@ def test_fetch_serves_mp3_without_session(client):
     assert r.mimetype == "audio/mpeg"
 
 
-def test_fetch_rejects_bad_hash(client):
-    r = client.get("/fetch.php?a=1|hin-eng|deadbeef|")
-    assert r.status_code == 403
+def test_fetch_open_to_all_hash_ignored(client):
+    # Owner's decision: no ip-hash gate; any/no token is served.
+    for a in ("1|hin-eng|deadbeef|", "1|hin-eng||", "1"):
+        r = client.get(f"/fetch.php?a={a}")
+        assert r.status_code == 200, a
+        assert r.data == b"ID3fake-mp3-bytes"
+
+
+def test_ip_hash_helper_still_documents_legacy_algorithm():
+    # kept for reference/tests even though the route no longer enforces it
+    assert ip_hash("1.2.3.4") == hashlib.md5(b"1.2.3.4-dowifi").hexdigest()
 
 
 def test_fetch_unknown_track_404(client):
@@ -126,6 +137,17 @@ def test_multiple_track_language_selection(client, config, app):
     assert r.status_code == 200 and r.data == b"base"
 
 
+def test_deshna_helper_tab(client):
+    assert client.get("/deshna").status_code == 302  # login required
+    client.post("/login", data={"pin": "4321"})
+    page = client.get("/deshna")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "fetch.php?a=1" in html        # one-click test for the on-disk file
+    assert "of <b>3716</b>" in html       # media status counter
+    assert "chown -R gong:gong" in html   # install/troubleshooting present
+
+
 def test_path_traversal_blocked(client, config):
     conn = db.connect(config.db_path)
     conn.execute(
@@ -134,3 +156,50 @@ def test_path_traversal_blocked(client, config):
     conn.close()
     r = client.get(f"/fetch.php?a=90009|x|{CLIENT_HASH}|")
     assert r.status_code == 404
+
+
+# ------------------------------------------------------------ USB media
+
+def test_usb_status_absent(monkeypatch, tmp_path):
+    from gong_ng import usbmedia
+    monkeypatch.setenv("GONG_USB_STATUS", str(tmp_path / "nope.json"))
+    assert usbmedia.status() == {"attached": None}
+
+
+def test_usb_status_parsed(monkeypatch, tmp_path):
+    from gong_ng import usbmedia
+    f = tmp_path / "usb-media.json"
+    f.write_text('{"attached": "sda1", "files": 42, "bound": true}')
+    monkeypatch.setenv("GONG_USB_STATUS", str(f))
+    st = usbmedia.status()
+    assert st["attached"] == "sda1" and st["files"] == 42 and st["bound"] is True
+
+
+def test_usb_copy_fake_mode(monkeypatch):
+    from gong_ng import usbmedia
+    monkeypatch.setenv("GONG_FAKE_USBMEDIA", "1")
+    ok, msg = usbmedia.copy()
+    assert ok and "copy" in msg
+
+
+def test_deshna_tab_shows_attached_usb(client, monkeypatch, tmp_path):
+    f = tmp_path / "usb-media.json"
+    f.write_text('{"attached": "sda1", "label": "DESHNA", "files": 7,'
+                 ' "bound": true, "mode": "mounted", "note": ""}')
+    monkeypatch.setenv("GONG_USB_STATUS", str(f))
+    client.post("/login", data={"pin": "4321"})
+    html = client.get("/deshna").get_data(as_text=True)
+    assert "USB sda1" in html
+    assert "Copy onto the Pi" in html
+    assert "stp/" in html and "STP/" in html   # directory-structure reference
+
+
+def test_deshna_usb_action_routes_to_helper(client, monkeypatch):
+    monkeypatch.setenv("GONG_FAKE_USBMEDIA", "1")
+    client.post("/login", data={"pin": "4321"})
+    # grab a csrf token from a rendered page
+    html = client.get("/deshna").get_data(as_text=True)
+    import re
+    token = re.search(r'name="csrf" value="([^"]+)"', html).group(1)
+    r = client.post("/deshna/usb", data={"do": "copy", "csrf": token})
+    assert r.status_code == 302  # redirect back to the tab with a flash
