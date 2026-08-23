@@ -1,138 +1,171 @@
 #!/bin/bash
-# Gong-NG first-boot provisioning for Raspberry Pi OS Bookworm (Lite).
+# Gong-NG first-boot — stage 0 (runs via systemd.run on first power-on).
 #
-# Stage A (done at flashing time, with internet):
-#   - Flash Pi OS Lite with the Imager (hostname dhammagong, SSH on).
-#   - Copy to the boot partition: this script, gong-firstboot.toml,
-#     gong-ng-bundle.tar.gz (deb pool + wheels + code + seed + media).
-#   - Append ' systemd.run=/boot/firstrun.sh' to cmdline.txt.
+# Flash-time layout:
+#   /opt/gong-src/              packed ng/ tree + media-src/ (code + seed + MP3s)
+#   /boot/firmware/gong-firstboot.toml
+#   cmdline: systemd.run=/boot/firstrun.sh
 #
-# This script (Stage B) must succeed with NO internet. Logs to
-# /boot/firstrun.log. Idempotent: safe to re-run.
-#
-# ⚠ HW-VALIDATE: nmcli AP mode, ALSA device name, and the RTC overlay must be
-# confirmed on the target board before field deployment (design §14, M0).
-
-set -euo pipefail
-exec > >(tee -a /boot/firstrun.log) 2>&1
-echo "=== gong-ng firstrun $(date -Is) ==="
-
+# This stage must not depend on the network. It writes identity + Wi-Fi,
+# enables the deferred installer, strips the cmdline hook, and exits 0 so
+# systemd.run_success_action=reboot can proceed. Apt/pip run after reboot
+# from the card-local offline pool (no internet, no network-online wait).
+set +e
 BOOT=/boot
-[ -d /boot/firmware ] && BOOT=/boot/firmware   # Bookworm mounts boot here
-CONF="$BOOT/gong-firstboot.toml"
-BUNDLE="$BOOT/gong-ng-bundle.tar.gz"
-[ -f "$CONF" ] || { echo "missing $CONF"; exit 1; }
-[ -f "$BUNDLE" ] || { echo "missing $BUNDLE"; exit 1; }
+[ -d /boot/firmware ] && BOOT=/boot/firmware
+mkdir -p /var/log /var/lib/gong-ng
+LOG=/var/log/gong-firstrun.log
+exec >>"$LOG" 2>&1
+echo "=== gong-ng firstrun stage0 $(date -Is 2>/dev/null || date) ==="
 
-# --- read firstboot config (python3 + tomllib ship with Bookworm) ----------
-cp "$CONF" /tmp/gong-firstboot.toml
+CONF=""
+for c in "$BOOT/gong-firstboot.toml" /boot/firmware/gong-firstboot.toml /boot/gong-firstboot.toml; do
+  [ -f "$c" ] && CONF="$c" && break
+done
+if [ -z "$CONF" ]; then
+  echo "WARN: no gong-firstboot.toml — using compiled defaults"
+fi
+
 cfg() {
-    python3 -c '
-import sys, tomllib
-with open("/tmp/gong-firstboot.toml", "rb") as f:
-    d = tomllib.load(f)
-for k in sys.argv[1].split("."):
-    d = d[k]
-print("true" if d is True else "false" if d is False else d)
-' "$1"
+  # cfg key [default]
+  python3 -c '
+import sys, tomllib, pathlib
+key, default = sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else ""
+p = pathlib.Path(sys.argv[3]) if len(sys.argv) > 3 else None
+d = {}
+if p and p.is_file():
+    with p.open("rb") as f:
+        d = tomllib.load(f)
+cur = d
+for part in key.split("."):
+    if not isinstance(cur, dict) or part not in cur:
+        print(default)
+        raise SystemExit(0)
+    cur = cur[part]
+print("true" if cur is True else "false" if cur is False else cur)
+' "$1" "${2:-}" "${CONF:-/dev/null}"
 }
 
-TZNAME=$(cfg unit.timezone)
-PIN=$(cfg unit.admin_pin)
+HOST=$(cfg unit.hostname dhammagong)
+TZNAME=$(cfg unit.timezone Asia/Kolkata)
+WIFI_MODE=$(cfg wifi.mode station)
 SSID=$(cfg wifi.ssid)
 PSK=$(cfg wifi.passphrase)
-COUNTRY=$(cfg wifi.country)
-CHANNEL=$(cfg wifi.channel)
-RELAY_HW=$(cfg relay.enabled_hw)
-RELAY_GPIO=$(cfg relay.gpio)
-RELAY_LOW=$(cfg relay.active_low)
-RTC=$(cfg rtc.enabled)
+COUNTRY=$(cfg wifi.country IN)
 
-# --- unpack bundle ----------------------------------------------------------
-WORK=/tmp/gong-bundle
-rm -rf "$WORK"; mkdir -p "$WORK"
-tar -xzf "$BUNDLE" -C "$WORK"
-# bundle layout: pool/*.deb  wheels/*.whl  code/ (the ng tree)  seed/  media/
-
-# --- packages (offline pool; network apt is best-effort only) ---------------
-if ls "$WORK"/pool/*.deb >/dev/null 2>&1; then
-    apt-get install -y --no-install-recommends "$WORK"/pool/*.deb || \
-        dpkg -i "$WORK"/pool/*.deb || true
+# --- identity ---
+CURRENT_HOSTNAME=$(tr -d ' \t\n\r' < /etc/hostname 2>/dev/null)
+echo "$HOST" >/etc/hostname
+if [ -n "$CURRENT_HOSTNAME" ]; then
+  sed -i "s/127.0.1.1.*${CURRENT_HOSTNAME}/127.0.1.1\t${HOST}/g" /etc/hosts
 fi
-# ensure the standalone dnsmasq is absent (NetworkManager runs its own)
-apt-get purge -y dnsmasq 2>/dev/null || true
+grep -q "^127.0.1.1" /etc/hosts || echo -e "127.0.1.1\t${HOST}" >>/etc/hosts
+timedatectl set-timezone "$TZNAME" 2>/dev/null || {
+  echo "$TZNAME" >/etc/timezone
+  ln -sfn "/usr/share/zoneinfo/$TZNAME" /etc/localtime
+}
+systemctl enable ssh 2>/dev/null
+mkdir -p /etc/ssh/sshd_config.d
+echo 'PasswordAuthentication yes' >/etc/ssh/sshd_config.d/99-gong.conf
+touch "$BOOT/ssh" /boot/ssh 2>/dev/null
 
-# --- user + directories ------------------------------------------------------
-id gong >/dev/null 2>&1 || useradd -r -m -d /var/lib/gong -s /usr/sbin/nologin gong
-usermod -aG audio,gpio,systemd-journal gong
-install -d -o gong -g gong -m 0750 /var/lib/gong
-install -d -o gong -g gong /var/lib/gong/media/gongs /var/lib/gong/media/doha \
-    /var/lib/gong/media/deshna
-
-# --- code + venv from vendored wheels ---------------------------------------
-rm -rf /opt/gong-ng
-mkdir -p /opt/gong-ng
-cp -r "$WORK"/code/* /opt/gong-ng/
-python3 -m venv /opt/gong-ng/venv
-/opt/gong-ng/venv/bin/pip install --no-index \
-    --find-links "$WORK/wheels" flask waitress gpiozero lgpio
-/opt/gong-ng/venv/bin/pip install --no-index --no-deps /opt/gong-ng
-chmod +x /opt/gong-ng/bin/*
-
-# --- config ------------------------------------------------------------------
-mkdir -p /etc/gong-ng
-sed -e "s|^timezone = .*|timezone = \"$TZNAME\"|" \
-    -e "s|^enabled_hw = .*|enabled_hw = $RELAY_HW|" \
-    -e "s|^gpio = .*|gpio = $RELAY_GPIO|" \
-    -e "s|^active_low = .*|active_low = $RELAY_LOW|" \
-    /opt/gong-ng/os/config.toml.example > /etc/gong-ng/config.toml
-
-# --- data: seed + media + PIN -------------------------------------------------
-mkdir -p /opt/gong-ng/seed
-cp "$WORK"/seed/* /opt/gong-ng/seed/
-cp "$WORK"/media/gongs/* /var/lib/gong/media/gongs/
-cp "$WORK"/media/doha/*  /var/lib/gong/media/doha/
-cp "$WORK"/seed/doha-manifest.json /var/lib/gong/media/doha/manifest.json
-chown -R gong:gong /var/lib/gong
-sudo -u gong GONG_CONFIG=/etc/gong-ng/config.toml \
-    /opt/gong-ng/venv/bin/python -m gong_ng.ctl init
-sudo -u gong GONG_CONFIG=/etc/gong-ng/config.toml \
-    /opt/gong-ng/venv/bin/python -m gong_ng.ctl reset-pin --pin "$PIN" >/dev/null
-
-# --- time --------------------------------------------------------------------
-timedatectl set-timezone "$TZNAME"
-if [ "$RTC" = "true" ]; then
-    grep -q '^dtoverlay=i2c-rtc' "$BOOT/config.txt" || \
-        printf 'dtparam=i2c_arm=on\ndtoverlay=i2c-rtc,ds3231\n' >> "$BOOT/config.txt"
-    apt-get purge -y fake-hwclock 2>/dev/null || true
+# --- station or AP wifi (NM keyfile; works on next full boot) ---
+raspi-config nonint do_wifi_country "$COUNTRY" 2>/dev/null || true
+mkdir -p /etc/wpa_supplicant
+if [ ! -f /etc/wpa_supplicant/wpa_supplicant.conf ]; then
+  printf 'ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev\nupdate_config=1\ncountry=%s\n' "$COUNTRY" \
+    >/etc/wpa_supplicant/wpa_supplicant.conf
+else
+  grep -q '^country=' /etc/wpa_supplicant/wpa_supplicant.conf \
+    || echo "country=$COUNTRY" >>/etc/wpa_supplicant/wpa_supplicant.conf
 fi
 
-# --- network: AP via NetworkManager (Bookworm default stack) ------------------
-raspi-config nonint do_wifi_country "$COUNTRY" || true
-nmcli con delete gong-ap 2>/dev/null || true
-nmcli con add type wifi ifname wlan0 con-name gong-ap autoconnect yes \
-    ssid "$SSID" mode ap ipv4.method shared ipv4.addresses 192.168.5.1/24 \
-    wifi.band bg wifi.channel "$CHANNEL" \
-    wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$PSK" \
-    wifi-sec.proto rsn wifi-sec.pairwise ccmp
-systemctl enable avahi-daemon 2>/dev/null || true
+NMDIR=/etc/NetworkManager/system-connections
+mkdir -p "$NMDIR"
+if [ "$WIFI_MODE" = "ap" ]; then
+  CHANNEL=$(cfg wifi.channel 6)
+  cat >"$NMDIR/gong-ap.nmconnection" <<EOF
+[connection]
+id=gong-ap
+type=wifi
+interface-name=wlan0
+autoconnect=true
 
-# --- firewall, sudoers, services ----------------------------------------------
-install -m 0644 /opt/gong-ng/os/nftables.conf /etc/nftables.conf
-systemctl enable nftables
-install -m 0440 /opt/gong-ng/os/sudoers.d-gong /etc/sudoers.d/gong-ng
-install -m 0644 /opt/gong-ng/systemd/gongd.service /etc/systemd/system/
-install -m 0644 /opt/gong-ng/systemd/gong-firstboot.service /etc/systemd/system/
-# USB Deshna media auto-mount (udev event -> templated helper service)
-install -m 0644 /opt/gong-ng/systemd/gong-usb-media@.service /etc/systemd/system/
-install -m 0644 /opt/gong-ng/systemd/gong-usb-media-detach@.service /etc/systemd/system/
-install -m 0644 /opt/gong-ng/os/udev/99-gong-usb-media.rules /etc/udev/rules.d/
-udevadm control --reload-rules 2>/dev/null || true
-systemctl daemon-reload
-systemctl enable gongd gong-firstboot
+[wifi]
+mode=ap
+ssid=$SSID
+channel=$CHANNEL
+band=bg
 
-# --- cleanup + reboot -----------------------------------------------------------
-sed -i 's| systemd.run=[^ ]*||' "$BOOT/cmdline.txt"
-shred -u /tmp/gong-firstboot.toml "$CONF" 2>/dev/null || rm -f "$CONF"
-echo "=== gong-ng firstrun complete, rebooting ==="
-reboot
+[wifi-security]
+key-mgmt=wpa-psk
+psk=$PSK
+proto=rsn
+pairwise=ccmp
+
+[ipv4]
+method=shared
+address1=192.168.5.1/24
+
+[ipv6]
+method=ignore
+EOF
+  chmod 600 "$NMDIR/gong-ap.nmconnection"
+else
+  cat >"$NMDIR/${SSID}.nmconnection" <<EOF
+[connection]
+id=$SSID
+type=wifi
+interface-name=wlan0
+autoconnect=true
+autoconnect-priority=100
+
+[wifi]
+mode=infrastructure
+ssid=$SSID
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=$PSK
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+EOF
+  chmod 600 "$NMDIR/${SSID}.nmconnection"
+fi
+
+# Keep a root-only copy of the toml for the deferred installer
+if [ -n "$CONF" ] && [ -f "$CONF" ]; then
+  mkdir -p /etc/gong-ng
+  cp -a "$CONF" /etc/gong-ng/firstboot.toml
+  chmod 600 /etc/gong-ng/firstboot.toml
+fi
+
+# --- defer Gong-NG install until the next full boot (local pool, no Wi-Fi) ---
+# Do not run the 100MB+ dpkg here: systemd.run can time out and loop the hook.
+if [ -x /usr/local/sbin/gong-ng-firstboot-install ]; then
+  systemctl enable gong-ng-install.service 2>/dev/null
+  echo "Deferred gong-ng-install.service enabled (offline pool)"
+else
+  echo "WARN: /usr/local/sbin/gong-ng-firstboot-install missing"
+fi
+
+# --- strip cmdline hook so we do not loop ---
+for cmd in "$BOOT/cmdline.txt" /boot/cmdline.txt /boot/firmware/cmdline.txt; do
+  [ -f "$cmd" ] || continue
+  sed -i 's| systemd.run=[^ ]*||g; s| systemd.run_success_action=[^ ]*||g; s| systemd.unit=kernel-command-line.target||g' "$cmd"
+  sed -i 's/  */ /g' "$cmd"
+done
+if [ -f "$BOOT/firstrun.sh" ]; then
+  mkdir -p /var/lib/gong-ng
+  cp -a "$BOOT/firstrun.sh" /var/lib/gong-ng/firstrun.sh.bak 2>/dev/null
+  rm -f "$BOOT/firstrun.sh"
+fi
+rm -f /boot/firstrun.sh
+
+echo "OK stage0 $(date -Is 2>/dev/null || date)" >/var/lib/gong-ng/stage0.done
+echo "=== gong-ng firstrun stage0 done — reboot ==="
+exit 0

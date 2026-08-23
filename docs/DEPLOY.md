@@ -1,3 +1,5 @@
+> **Gong-NG (`gong-ng` branch):** flash + pack procedure is **[GONG-NG-FLASH.md](GONG-NG-FLASH.md)**. The steps below are the legacy PHP installer.
+
 # Deploy guide
 
 ## Prerequisites

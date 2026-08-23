@@ -11,8 +11,22 @@ internet ever required. Full design: [`../docs/GONG-NG-DESIGN.md`](../docs/GONG-
   conversion from the legacy dump, admin UI + JSON API, `gongctl`, unit tests.
 - **Not yet validated on hardware (M0):** ALSA device name, relay boot-glitch,
   NetworkManager AP mode, DS3231. Run `tools/hw-spike.sh` on a Pi first.
-- **Not built yet (M3):** the offline install bundle builder; `firstboot/firstrun.sh`
-  documents the target flow but has not run on a real card.
+- **Firstboot (packed SD):** flash Bookworm Lite, run `ng/firstboot/pack-sd.sh`,
+  boot the Pi. Procedure: [`../docs/GONG-NG-FLASH.md`](../docs/GONG-NG-FLASH.md).
+  `ng/firstboot/offline/` vendors arm64 `.deb`s + wheels so firstboot does
+  **not** call apt or PyPI.
+
+## Deploy on a Raspberry Pi
+
+From a new microSD: **[`docs/GONG-NG-FLASH.md`](../docs/GONG-NG-FLASH.md)**.
+
+```bash
+# after cloning gong-ng
+cp ng/firstboot/gong-firstboot.toml.example ng/firstboot/gong-firstboot.toml
+# edit Wi-Fi + PIN
+sudo ./ng/firstboot/pack-sd.sh --device /dev/mmcblk0 --toml ng/firstboot/gong-firstboot.toml
+# card boots; gongd comes up from the vendored pool (no apt/PyPI on the Pi)
+```
 
 ## Screenshots
 
@@ -53,7 +67,8 @@ bin/                gongctl, gong-settime (sudo helper), gong-smoke-check
 seed/               seed.sql + doha-manifest.json — GENERATED, do not edit
 tools/              convert_legacy_seed.py (build-time), hw-spike.sh (M0)
 systemd/ os/        units, sudoers, nftables, config.toml.example
-firstboot/          firstrun.sh + gong-firstboot.toml.example (M3)
+firstboot/          firstrun.sh, pack-sd.sh, gong-firstboot.toml.example,
+                    vendor-offline.sh, offline/{pool,wheels} (M3 bundle)
 tests/              pytest suite; test_seed.py pins seed.sql to db/gong.sql
 ```
 

@@ -1,0 +1,4 @@
+ng/firstboot/offline/pool/** linguist-vendored
+ng/firstboot/offline/wheels/** linguist-vendored
+ng/firstboot/offline/Packages linguist-generated
+ng/firstboot/offline/Packages.gz linguist-generated

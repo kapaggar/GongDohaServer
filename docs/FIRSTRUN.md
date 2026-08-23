@@ -1,3 +1,5 @@
+> **Gong-NG (`gong-ng` branch):** this file is the *legacy* LAMP firstboot. For the Python appliance use **[GONG-NG-FLASH.md](GONG-NG-FLASH.md)**.
+
 # First-boot provisioning (`firstrun.sh`)
 
 Complete first-boot flow for turning a **fresh Raspberry Pi OS image** into a Gongserver.

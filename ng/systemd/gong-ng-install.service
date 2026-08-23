@@ -1,0 +1,15 @@
+[Unit]
+Description=Gong-NG first-boot install from packed /opt/gong-src
+After=local-fs.target
+# Offline pool on the card is enough; do not block on Wi-Fi.
+ConditionPathExists=/opt/gong-src/pyproject.toml
+ConditionPathExists=!/var/lib/gong-ng/install.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gong-ng-firstboot-install
+RemainAfterExit=yes
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

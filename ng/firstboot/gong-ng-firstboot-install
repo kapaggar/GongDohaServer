@@ -1,0 +1,233 @@
+#!/bin/bash
+# Gong-NG first-boot — stage 1.
+# Installs from the flash-time payload at /opt/gong-src.
+# Prefers the vendored offline pool + wheels (no internet). Falls back to
+# apt/PyPI only if that pool is missing.
+set +e
+exec >>/var/log/gong-firstboot-install.log 2>&1
+echo "======== gong-ng install $(date -Is 2>/dev/null || date) ========"
+
+MARKER=/var/lib/gong-ng/install.done
+if [ -f "$MARKER" ]; then
+  echo "Already installed ($MARKER) — disabling unit"
+  systemctl disable gong-ng-install.service 2>/dev/null
+  exit 0
+fi
+
+SRC=/opt/gong-src
+if [ ! -f "$SRC/pyproject.toml" ]; then
+  echo "FAILED: packed payload missing at $SRC"
+  exit 1
+fi
+
+OFFLINE=""
+for d in "$SRC/firstboot/offline" "$SRC/offline"; do
+  if [ -f "$d/Packages" ] && [ -d "$d/pool" ]; then
+    OFFLINE=$d
+    break
+  fi
+done
+if [ -n "$OFFLINE" ]; then
+  echo "offline pool: $OFFLINE"
+else
+  echo "WARN: no vendored offline pool — will need network"
+fi
+
+BOOT=/boot
+[ -d /boot/firmware ] && BOOT=/boot/firmware
+CONF=""
+for c in /tmp/gong-firstboot.toml "$BOOT/gong-firstboot.toml" /etc/gong-ng/firstboot.toml; do
+  [ -f "$c" ] && CONF="$c" && break
+done
+
+cfg() {
+  python3 -c '
+import sys, tomllib, pathlib
+key, default = sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else ""
+p = pathlib.Path(sys.argv[3]) if len(sys.argv) > 3 else None
+d = {}
+if p and p.is_file():
+    with p.open("rb") as f:
+        d = tomllib.load(f)
+cur = d
+for part in key.split("."):
+    if not isinstance(cur, dict) or part not in cur:
+        print(default)
+        raise SystemExit(0)
+    cur = cur[part]
+print("true" if cur is True else "false" if cur is False else cur)
+' "$1" "${2:-}" "${CONF:-/dev/null}"
+}
+
+PIN=$(cfg unit.admin_pin 4321)
+TZNAME=$(cfg unit.timezone Asia/Kolkata)
+RELAY_HW=$(cfg relay.enabled_hw true)
+RELAY_GPIO=$(cfg relay.gpio 17)
+RELAY_LOW=$(cfg relay.active_low true)
+SSID=$(cfg wifi.ssid)
+PSK=$(cfg wifi.passphrase)
+
+PKGS="python3-venv python3.11-venv python3-pip python3-gpiozero python3-lgpio python3-flask python3-waitress mpv alsa-utils avahi-daemon nftables"
+export DEBIAN_FRONTEND=noninteractive
+
+install_pkgs_offline() {
+  echo "deb [trusted=yes] file:${OFFLINE} ./" >/etc/apt/sources.list.d/gong-offline.list
+  if ! apt-get update \
+        -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/gong-offline.list \
+        -o Dir::Etc::sourceparts=/dev/null \
+        -o APT::Get::List-Cleanup=0; then
+    echo "FAILED: apt-get update from $OFFLINE"
+    return 1
+  fi
+  if ! apt-get install -y --no-install-recommends \
+        -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/gong-offline.list \
+        -o Dir::Etc::sourceparts=/dev/null \
+        $PKGS; then
+    echo "FAILED: apt-get install from offline pool"
+    return 1
+  fi
+  return 0
+}
+
+wait_for_network() {
+  local WAIT=180 i=0
+  mkdir -p /etc/apt/apt.conf.d
+  echo 'Acquire::ForceIPv4 "true";' >/etc/apt/apt.conf.d/99-gong-force-ipv4
+  while [ "$i" -lt "$WAIT" ]; do
+    if ip -4 route show default | grep -q .; then
+      echo "network up after ${i}s"
+      return 0
+    fi
+    if command -v nmcli >/dev/null 2>&1 && [ -n "$SSID" ]; then
+      nmcli radio wifi on 2>/dev/null
+      nmcli dev wifi connect "$SSID" password "$PSK" ifname wlan0 2>/dev/null
+    fi
+    sleep 2
+    i=$((i + 2))
+  done
+  echo "WARN: no default route after ${WAIT}s"
+  return 1
+}
+
+if [ -n "$OFFLINE" ]; then
+  if ! install_pkgs_offline; then
+    echo "FAILED: offline apt"
+    exit 1
+  fi
+else
+  wait_for_network || true
+  ip -4 addr; ip -4 route; nmcli -t -f DEVICE,TYPE,STATE,CONNECTION dev 2>/dev/null
+  apt-get update
+  if ! apt-get install -y --no-install-recommends --fix-missing \
+        python3-venv python3-pip python3-gpiozero python3-lgpio; then
+    echo "FAILED: apt python3-venv/pip"
+    exit 1
+  fi
+  apt-get install -y --no-install-recommends --fix-missing \
+    python3-flask python3-waitress mpv alsa-utils avahi-daemon nftables || true
+fi
+apt-get purge -y dnsmasq 2>/dev/null
+
+# Locale so SSH is not noisy (Imager may set LANG without generating it)
+sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+locale-gen en_US.UTF-8 >/dev/null 2>&1 || true
+update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 2>/dev/null || true
+
+id gong >/dev/null 2>&1 || useradd -r -m -d /var/lib/gong -s /usr/sbin/nologin gong
+usermod -aG audio,gpio,systemd-journal gong
+install -d -o gong -g gong -m 0750 /var/lib/gong
+install -d -o gong -g gong /var/lib/gong/media/gongs /var/lib/gong/media/doha \
+  /var/lib/gong/media/deshna
+
+rm -rf /opt/gong-ng
+mkdir -p /opt/gong-ng
+# Keep the 100MB+ apt pool only under /opt/gong-src (used above).
+tar -C "$SRC" --exclude firstboot/offline --exclude '.venv' \
+    --exclude '__pycache__' -cf - . | tar -C /opt/gong-ng -xf -
+if ! python3 -m venv --system-site-packages /opt/gong-ng/venv; then
+  echo "FAILED: python3 -m venv"
+  exit 1
+fi
+
+PIP=/opt/gong-ng/venv/bin/pip
+if [ -d "$OFFLINE/wheels" ] && ls "$OFFLINE/wheels"/*.whl >/dev/null 2>&1; then
+  echo "pip --no-index --find-links $OFFLINE/wheels"
+  if ! "$PIP" install --no-index --find-links "$OFFLINE/wheels" \
+        flask waitress gpiozero lgpio; then
+    echo "FAILED: pip --no-index flask/waitress"
+    exit 1
+  fi
+else
+  if ! "$PIP" install flask waitress gpiozero lgpio; then
+    echo "FAILED: pip install flask/waitress"
+    exit 1
+  fi
+fi
+if ! "$PIP" install --no-index --no-deps /opt/gong-ng; then
+  echo "FAILED: pip install gong-ng"
+  exit 1
+fi
+if ! /opt/gong-ng/venv/bin/python -c 'import flask, waitress, gong_ng'; then
+  echo "FAILED: venv import flask/waitress/gong_ng"
+  exit 1
+fi
+chmod +x /opt/gong-ng/bin/*
+
+mkdir -p /etc/gong-ng
+sed -e "s|^timezone = .*|timezone = \"$TZNAME\"|" \
+    -e "s|^enabled_hw = .*|enabled_hw = $RELAY_HW|" \
+    -e "s|^gpio = .*|gpio = $RELAY_GPIO|" \
+    -e "s|^active_low = .*|active_low = $RELAY_LOW|" \
+    /opt/gong-ng/os/config.toml.example > /etc/gong-ng/config.toml
+
+chown -R gong:gong /var/lib/gong
+if ! sudo -u gong GONG_CONFIG=/etc/gong-ng/config.toml \
+     /opt/gong-ng/venv/bin/python -m gong_ng.ctl init; then
+  echo "FAILED: gongctl init"
+  exit 1
+fi
+if ! sudo -u gong GONG_CONFIG=/etc/gong-ng/config.toml \
+     /opt/gong-ng/venv/bin/python -m gong_ng.ctl reset-pin --pin "$PIN"; then
+  echo "FAILED: gongctl reset-pin"
+  exit 1
+fi
+
+timedatectl set-timezone "$TZNAME" 2>/dev/null || true
+
+install -m 0644 /opt/gong-ng/os/nftables.conf /etc/nftables.conf
+install -m 0440 /opt/gong-ng/os/sudoers.d-gong /etc/sudoers.d/gong-ng
+install -m 0644 /opt/gong-ng/systemd/gongd.service /etc/systemd/system/
+install -m 0644 /opt/gong-ng/systemd/gong-firstboot.service /etc/systemd/system/
+install -m 0644 /opt/gong-ng/systemd/gong-usb-media@.service /etc/systemd/system/
+install -m 0644 /opt/gong-ng/systemd/gong-usb-media-detach@.service /etc/systemd/system/
+install -m 0644 /opt/gong-ng/os/udev/99-gong-usb-media.rules /etc/udev/rules.d/
+udevadm control --reload-rules 2>/dev/null
+systemctl daemon-reload
+systemctl enable nftables avahi-daemon gongd gong-firstboot
+systemctl reset-failed gongd.service 2>/dev/null
+systemctl start nftables avahi-daemon gongd
+sleep 2
+if ! systemctl is-active --quiet gongd; then
+  # systemd.run (stage 0) cannot keep long-running units; they start after reboot.
+  if grep -q 'systemd.unit=kernel-command-line.target' /proc/cmdline 2>/dev/null; then
+    echo "gongd not started during systemd.run — enabled for the next boot"
+  else
+    echo "FAILED: gongd did not stay active"
+    journalctl -u gongd -n 40 --no-pager || true
+    exit 1
+  fi
+fi
+sudo -u gong GONG_CONFIG=/etc/gong-ng/config.toml \
+  /opt/gong-ng/venv/bin/python -m gong_ng.ctl status --check || true
+
+mkdir -p /var/lib/gong-ng
+date -Is >"$MARKER" 2>/dev/null || date >"$MARKER"
+systemctl disable gong-ng-install.service 2>/dev/null
+
+if [ -n "$CONF" ] && [ -f "$CONF" ] && [ "$CONF" != /etc/gong-ng/firstboot.toml ]; then
+  shred -u "$CONF" 2>/dev/null || rm -f "$CONF"
+fi
+
+echo "OK install-complete $(date -Is 2>/dev/null || date)"
+echo "OK install-complete" >"$BOOT/gong-firstrun.status" 2>/dev/null
+exit 0

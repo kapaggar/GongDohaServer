@@ -21,3 +21,6 @@ __pycache__/
 # Docker local overrides
 docker-compose.override.yml
 unsorted-screenshots/
+# Per-unit firstboot secrets (never commit)
+gong-firstboot.toml
+ng/firstboot/gong-firstboot.toml

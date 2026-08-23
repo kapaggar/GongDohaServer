@@ -1,16 +1,20 @@
 # Gong-NG first-boot configuration.
 # Copy to the SD card boot partition as gong-firstboot.toml and edit.
-# Consumed once by firstrun.sh, then deleted (it contains secrets).
+# Consumed by firstrun.sh / the deferred installer, then deleted (secrets).
 
 [unit]
+hostname = "dhammagong"
 timezone = "Asia/Kolkata"
-admin_pin = "482913"          # initial UI PIN — change per unit!
+admin_pin = "4321"            # initial UI PIN — change per unit!
 
 [wifi]
-ssid = "DhammaGong"
-passphrase = "ChangeMePerCentre"   # WPA2; never ship the default
+# station = join an existing LAN (apt + admin from that network)
+# ap      = centre access point 192.168.5.1 (SSID below)
+mode = "station"
+ssid = "YourWifiSsid"
+passphrase = "ChangeMe"
 country = "IN"
-channel = 6
+channel = 6                   # used only when mode = "ap"
 
 [relay]
 enabled_hw = true
