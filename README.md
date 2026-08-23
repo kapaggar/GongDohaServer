@@ -1,5 +1,9 @@
 # DhammaGong / Gongserver
 
+> **This branch is `gong-legacy`.** It is the PHP/LAMP appliance (formerly
+> `main`). Gong-NG (`gongd`, packed SD, no internet on firstboot) is the
+> default on **[`main`](https://github.com/kapaggar/GongDohaServer)**.
+
 Raspberry Pi **LAMP appliance** that auto-schedules **gong (bell)** and **doha (MP3)** playback for Vipassana courses.
 
 This repository packages:

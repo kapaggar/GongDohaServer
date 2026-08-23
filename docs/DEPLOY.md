@@ -1,3 +1,7 @@
+> **This branch is `gong-legacy`** (PHP/LAMP installer). Gong-NG flash + pack
+> is on **[`main`](https://github.com/kapaggar/GongDohaServer)** —
+> [`docs/GONG-NG-FLASH.md`](https://github.com/kapaggar/GongDohaServer/blob/main/docs/GONG-NG-FLASH.md).
+
 # Deploy guide
 
 ## Prerequisites

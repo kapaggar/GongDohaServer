@@ -1,3 +1,7 @@
+> **This branch is `gong-legacy`.** Unattended LAMP firstboot only. For the
+> Python appliance use **[`main`](https://github.com/kapaggar/GongDohaServer)**
+> and [`docs/GONG-NG-FLASH.md`](https://github.com/kapaggar/GongDohaServer/blob/main/docs/GONG-NG-FLASH.md).
+
 # First-boot provisioning (`firstrun.sh`)
 
 Complete first-boot flow for turning a **fresh Raspberry Pi OS image** into a Gongserver.
