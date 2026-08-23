@@ -17,7 +17,7 @@ reach the UI later — the install itself is from the card.
 |------|--------|
 | microSD | 8 GB+ **real** capacity. A “125G” card that is actually ~11G still works if you cap the resize (below). |
 | Host | Linux box with the card reader (Steam Deck is fine) and `sudo`. |
-| This repo | Branch `gong-ng`, including `ng/firstboot/offline/`. |
+| This repo | Default branch `main`, including `ng/firstboot/offline/`. |
 | Pi OS image | Bookworm **Lite 64-bit** (legacy/oldstable), not Trixie Desktop. Download **once**; reuse the `.img.xz`. |
 | Raspberry Pi Imager | Deck: `~/Applications/rpi-imager.AppImage`. Official: [raspberrypi.com/software](https://www.raspberrypi.com/software/). |
 | Wi-Fi (optional at install) | Station SSID + passphrase in `gong-firstboot.toml` so you can open the UI on the LAN. `mode = "ap"` for a centre AP. Never commit the real file. |
@@ -223,5 +223,5 @@ immediately). Always pass `--last-sec` from f3probe. Do not let any tool
 
 | Path | Use |
 |------|-----|
-| `docs/FIRSTRUN.md` + `installer/install.sh` | Legacy PHP/LAMP Gongserver (`main`) |
+| `docs/FIRSTRUN.md` + `installer/install.sh` | Legacy PHP/LAMP Gongserver (`gong-legacy`) |
 | `docker pull kapilgit/gong-ng` | UI demo, **dummy audio**, not a centre unit |

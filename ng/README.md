@@ -21,7 +21,7 @@ internet ever required. Full design: [`../docs/GONG-NG-DESIGN.md`](../docs/GONG-
 From a new microSD: **[`docs/GONG-NG-FLASH.md`](../docs/GONG-NG-FLASH.md)**.
 
 ```bash
-# after cloning gong-ng
+# after cloning (default branch is main)
 cp ng/firstboot/gong-firstboot.toml.example ng/firstboot/gong-firstboot.toml
 # edit Wi-Fi + PIN
 sudo ./ng/firstboot/pack-sd.sh --device /dev/mmcblk0 --toml ng/firstboot/gong-firstboot.toml

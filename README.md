@@ -1,5 +1,13 @@
 # DhammaGong / Gongserver
 
+**`main` is Gong-NG** (Python `gongd`). Start at [`ng/README.md`](ng/README.md)
+and [`docs/GONG-NG-FLASH.md`](docs/GONG-NG-FLASH.md). The PHP/LAMP appliance
+that used to be the default lives on **[`gong-legacy`](https://github.com/kapaggar/GongDohaServer/tree/gong-legacy)**.
+
+---
+
+# Legacy LAMP (still in this tree; maintained on `gong-legacy`)
+
 Raspberry Pi **LAMP appliance** that auto-schedules **gong (bell)** and **doha (MP3)** playback for Vipassana courses.
 
 This repository packages:

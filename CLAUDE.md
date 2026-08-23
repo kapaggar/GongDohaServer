@@ -2,6 +2,10 @@
 
 Context for Claude Code sessions working in this repo. Keep this current when architecture or open items change.
 
+**Branches:** `main` is Gong-NG (`ng/`, `gongd`). `gong-legacy` is the PHP/LAMP
+appliance that used to be `main`. This file still describes the LAMP stack
+that remains in-tree; Gong-NG design is `docs/GONG-NG-DESIGN.md`.
+
 ## What this is
 
 Raspberry Pi **LAMP appliance** that auto-schedules **gong (bell)** and **doha (MP3)** playback for Vipassana meditation courses. Derived from a production Raspbian Buster image (`hostname: DhammaGong`) and re-packaged as a deployable repo (installer + Docker test harness) with portable fixes for modern Pi OS.

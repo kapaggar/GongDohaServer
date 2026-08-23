@@ -7,7 +7,7 @@ single container with **dummy audio** (no real speaker / ALSA).
 |---|---|
 | **Image** | `kapilgit/gong-ng:latest` |
 | **Hub** | https://hub.docker.com/r/kapilgit/gong-ng |
-| **Source branch** | [`gong-ng`](https://github.com/kapaggar/GongDohaServer/tree/gong-ng) |
+| **Source branch** | [`main`](https://github.com/kapaggar/GongDohaServer/tree/main) |
 | **Dockerfile** | [`ng/docker/Dockerfile`](../ng/docker/Dockerfile) |
 | **Architecture** | `linux/arm64` only (Apple Silicon / Raspberry Pi) |
 | **Size** | ~1.23 GB image (~540 MB compressed layers) |
@@ -111,7 +111,7 @@ Both tags currently point at the same image digest.
 Requires Docker Hub login as `kapilgit` (or update the image name).
 
 ```bash
-# From repo root on gong-ng, after a local build:
+# From repo root on main, after a local build:
 #   docker build -f ng/docker/Dockerfile -t gong-ng .
 
 docker tag gong-ng:latest kapilgit/gong-ng:latest

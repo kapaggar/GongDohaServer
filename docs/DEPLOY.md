@@ -1,4 +1,5 @@
-> **Gong-NG (`gong-ng` branch):** flash + pack procedure is **[GONG-NG-FLASH.md](GONG-NG-FLASH.md)**. The steps below are the legacy PHP installer.
+> **Gong-NG lives on `main`.** Flash + pack: **[GONG-NG-FLASH.md](GONG-NG-FLASH.md)**.
+> The steps below are the legacy PHP installer (branch **`gong-legacy`**).
 
 # Deploy guide
 

@@ -1,4 +1,6 @@
-> **Gong-NG (`gong-ng` branch):** this file is the *legacy* LAMP firstboot. For the Python appliance use **[GONG-NG-FLASH.md](GONG-NG-FLASH.md)**.
+> **Gong-NG lives on `main`.** This file is the *legacy* LAMP firstboot (also
+> the whole of [`gong-legacy`](https://github.com/kapaggar/GongDohaServer/tree/gong-legacy)).
+> For the Python appliance use **[GONG-NG-FLASH.md](GONG-NG-FLASH.md)**.
 
 # First-boot provisioning (`firstrun.sh`)
 
