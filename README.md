@@ -1,153 +1,98 @@
-# DhammaGong / Gongserver
+# DhammaGong (Gong-NG)
 
-**`main` is Gong-NG** (Python `gongd`). Start at [`ng/README.md`](ng/README.md)
-and [`docs/GONG-NG-FLASH.md`](docs/GONG-NG-FLASH.md). The PHP/LAMP appliance
-that used to be the default lives on **[`gong-legacy`](https://github.com/kapaggar/GongDohaServer/tree/gong-legacy)**.
+Raspberry Pi appliance that auto-schedules **gong (bell)** and **doha (MP3)**
+playback for Vipassana courses. **`main` is Gong-NG**: one Python daemon
+(`gongd`) with a PIN-protected mobile admin UI, SQLite storage, and a
+second-accurate scheduler. The older PHP/LAMP stack lives on
+[`gong-legacy`](https://github.com/kapaggar/GongDohaServer/tree/gong-legacy).
 
----
-
-# Legacy LAMP (still in this tree; maintained on `gong-legacy`)
-
-Raspberry Pi **LAMP appliance** that auto-schedules **gong (bell)** and **doha (MP3)** playback for Vipassana courses.
-
-This repository packages:
-
-1. **Application code** (PHP poller, doha player, admin UI, relay script)
-2. **Media** (gong + 11 doha tracks)
-3. **Database schema** (course types, schedules, settings)
-4. **OS config templates** (cron, sudoers, hostapd, dnsmasq, logrotate)
-5. **Installer** that turns a **fresh Raspberry Pi OS** into a working Gongserver
-
-Derived from a production image (`hostname: DhammaGong`, Raspbian Buster) with portable fixes for modern Pi OS.
+Design: [`docs/GONG-NG-DESIGN.md`](docs/GONG-NG-DESIGN.md).
+Details and local (non-Docker) development: [`ng/README.md`](ng/README.md).
 
 ---
 
-## Test on a Mac (no Pi required)
+## Screenshots
 
-Uses Docker for LAMP + app logic (not hostapd/GPIO/real Pi audio):
+Captured from the Docker demo on `main` (dummy audio, 10 Day course on day 4,
+PIN `4321`). Full-size PNGs are in [`docs/screenshots/`](docs/screenshots/).
 
-```bash
-cd /Users/wizops/gongserver   # or your clone path
-./scripts/mac-test.sh up
-./scripts/mac-test.sh test
-# UI → http://127.0.0.1:8080/
-```
-
-Details: [docs/TESTING-ON-MAC.md](docs/TESTING-ON-MAC.md)
-
-## Quick start (on a Raspberry Pi)
-
-```bash
-# After copying this repo onto the Pi:
-cd gongserver
-cp config.env.example config.env
-# edit GONG_DB_PASS (and AP settings if needed)
-sudo ./installer/install.sh
-```
-
-Open the admin UI: `http://<pi-ip>/`
-
-Optional centre Wi‑Fi AP (use ethernet while installing):
-
-```bash
-sudo ./installer/install.sh --with-ap
-```
-
-Full steps: [docs/DEPLOY.md](docs/DEPLOY.md)
-
-### First boot (unattended)
-
-Flash Pi OS, copy `boot/firstrun.sh` + the full repo onto the SD **boot** partition, wire `cmdline.txt`. Details: **[docs/FIRSTRUN.md](docs/FIRSTRUN.md)**.
+| | |
+|---|---|
+| **Login**<br><img src="docs/screenshots/login.png" width="400" alt="Login"> | **Home** — course day, toggles, next events, test buttons<br><img src="docs/screenshots/dashboard.png" width="400" alt="Dashboard"> |
+| **Courses** — calendar of upcoming courses<br><img src="docs/screenshots/courses.png" width="400" alt="Courses"> | **Schedule** — default-day gong times<br><img src="docs/screenshots/schedule.png" width="400" alt="Schedule"> |
+| **Schedule, day 4** — explicit day override<br><img src="docs/screenshots/schedule-day.png" width="400" alt="Schedule day 4"> | **Sounds & volume**<br><img src="docs/screenshots/sounds.png" width="400" alt="Sounds"> |
+| **Deshna** — point the tablet at this server, media and USB status<br><img src="docs/screenshots/deshna.png" width="400" alt="Deshna"> | **Time** — clock and RTC status<br><img src="docs/screenshots/time.png" width="400" alt="Time"> |
+| **Logs** — play history; late fires are logged as missed, never played late<br><img src="docs/screenshots/logs.png" width="400" alt="Play history"> | **Backup & restore** — one-file SQLite download<br><img src="docs/screenshots/backup.png" width="400" alt="Backup"> |
 
 ---
 
-## Repository layout
+## Try it in Docker (no Pi)
+
+Build from this tree and run the same image that produced the screenshots:
+
+```bash
+docker build -f ng/docker/Dockerfile -t gong-ng:local .
+docker run -d --name gong-ng-demo -p 8090:80 \
+  -e GONG_PIN=4321 -e GONG_DEMO=1 \
+  -v gong-ng-data:/var/lib/gong \
+  gong-ng:local
+```
+
+Open http://127.0.0.1:8090/ and log in with PIN **4321**. Audio is dummy
+(timed “plays”, no speaker). A published image is documented in
+[`docs/DOCKER-HUB-DEMO.md`](docs/DOCKER-HUB-DEMO.md).
+
+```bash
+docker logs -f gong-ng-demo    # follow
+docker rm -f gong-ng-demo && docker volume rm gong-ng-data   # reset
+```
+
+---
+
+## Flash a Raspberry Pi
+
+From a blank microSD: flash Bookworm Lite 64-bit, then pack this repo onto
+the card. Firstboot installs from the vendored `ng/firstboot/offline/` pool
+(no apt or PyPI on the Pi). Full procedure:
+[`docs/GONG-NG-FLASH.md`](docs/GONG-NG-FLASH.md).
+
+```bash
+cp ng/firstboot/gong-firstboot.toml.example ng/firstboot/gong-firstboot.toml
+# edit Wi-Fi + PIN — never commit the real file
+sudo ./ng/firstboot/pack-sd.sh --device /dev/mmcblk0 \
+  --toml ng/firstboot/gong-firstboot.toml
+```
+
+On the Pi, the UI is `http://<pi-ip>/` (port 80).
+
+---
+
+## Layout
 
 ```text
-gongserver/
-├── README.md
-├── config.env.example          # copy → config.env (not committed)
-├── boot/
-│   ├── firstrun.sh             # complete first-boot provisioner
-│   ├── gong-firstrun.env.example
-│   └── cmdline.txt.example
-├── app/
-│   ├── dhamma/                 # → installed to /home/dhamma
-│   │   ├── constants.inc
-│   │   ├── poll.php            # gong every minute
-│   │   ├── doha.php            # doha at 06:37
-│   │   ├── set-zero-day.php
-│   │   ├── check-date
-│   │   ├── relay-control       # GPIO amp relay
-│   │   ├── gong-*.mp3
-│   │   └── doha/*.mp3
-│   └── www/index.php           # → /var/www/html
-├── db/gong.sql                 # schema + schedules seed
-├── os/                         # config templates applied by installer
-├── installer/install.sh        # main entrypoint
-└── docs/
-    ├── DEPLOY.md
-    ├── FIRSTRUN.md             # unattended first boot
-    └── OS-DELTAS.md            # what stock OS gains
+ng/                 gongd, admin UI, firstboot, Docker demo
+docs/               flash, design, Docker Hub, screenshots/
+app/dhamma/         gong + doha media (used by Gong-NG seed and Docker)
 ```
 
 ---
 
-## How it works
+## Legacy LAMP (not this branch’s product)
 
-```text
-cron (root)
-  ├─ every minute  → poll.php  → schedule match? → play gong N times
-  ├─ 06:37         → doha.php  → pick track for course day → play
-  ├─ 08/14/16:00   → set-zero-day.php
-  └─ optional      → check-date (NTP)
-admin UI (Apache+PHP) → MariaDB `gong` → settings / courses / schedule
-optional: hostapd AP 192.168.5.1 + dnsmasq DHCP
-```
+The PHP/MariaDB/cron appliance is still in this tree for seed conversion and
+media, but it is **maintained on `gong-legacy`**. Installer, Mac LAMP test
+harness, and first-boot for that stack:
 
-See also the forensic docs from the original image analysis if present under your `GongRootfsFiles/README/`.
-
----
-
-## Configuration
-
-| Item | Where |
-|------|--------|
-| Install secrets / AP | `config.env` (from example) |
-| Runtime DB + player | `/etc/gongserver/config.inc.php` (written by installer) |
-| Course / enable / volume | Web UI |
-| Gong times | MariaDB `schedule` table |
-
----
-
-## Requirements
-
-| Component | Notes |
-|-----------|--------|
-| OS | Raspberry Pi OS Bullseye/Bookworm (Debian-based) |
-| Packages | apache2, mariadb, php, mpg123, … (installer) |
-| Audio | ALSA device working (`mpg123 file.mp3`) |
-| Optional | hostapd Wi‑Fi AP, GPIO relay |
-
-**Not** a full SD-card disk image: it configures a live system. For cloning many units, install once then `dd` the card, or re-run the installer on each Pi.
-
----
-
-## Security
-
-- UI is **unauthenticated** (centre AP threat model).
-- Change default DB and Wi‑Fi passwords in `config.env`.
-- `config.env` is gitignored — do not commit secrets.
-- Media may be centre-sensitive; keep the repo private if needed.
+- [`docs/DEPLOY.md`](docs/DEPLOY.md)
+- [`docs/TESTING-ON-MAC.md`](docs/TESTING-ON-MAC.md) (`http://127.0.0.1:8080/`)
+- [`docs/FIRSTRUN.md`](docs/FIRSTRUN.md)
 
 ---
 
 ## License / media
 
-Source code, configuration, installer, schema, and docs are licensed under the
-**MIT License** — see [LICENSE](LICENSE).
+Source, config, installer, schema, and docs are **MIT** — see [LICENSE](LICENSE).
 
-**The audio is not MIT-licensed.** The gong and doha MP3s under `app/dhamma/`
-remain the property of their original rights holders (Vipassana Research
-Institute / the course tradition). Redistribute or reuse the audio only as those
-rights holders permit. See the NOTICE section at the bottom of [LICENSE](LICENSE).
+**The audio is not MIT-licensed.** Gong and doha MP3s under `app/dhamma/`
+remain the property of their original rights holders. Redistribute them only
+as those rights holders permit.

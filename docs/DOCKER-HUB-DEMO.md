@@ -54,6 +54,9 @@ Open the UI:
 - Courses / schedule / sounds / time / play history
 - Dummy audio: gong “plays” are timed only (no sound)
 
+Current-tree screenshots of those pages:
+[`docs/screenshots/`](screenshots/) (also on the [root README](../README.md)).
+
 On first start the entrypoint (`ng/docker/entrypoint.sh`):
 
 1. Initializes the SQLite DB under `/var/lib/gong`

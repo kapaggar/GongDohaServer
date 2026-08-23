@@ -3,3 +3,7 @@
 **/.pytest_cache
 ng/.venv
 ng/*.egg-info
+ng/firstboot/offline
+ng/tests
+docs/screenshots
+*.md

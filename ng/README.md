@@ -30,15 +30,17 @@ sudo ./ng/firstboot/pack-sd.sh --device /dev/mmcblk0 --toml ng/firstboot/gong-fi
 
 ## Screenshots
 
-Admin UI running against the Docker demo (dummy audio, 10 Day course active).
+Admin UI from the Docker demo on `main` (dummy audio, 10 Day course active).
+PNGs live in [`../docs/screenshots/`](../docs/screenshots/); the same gallery
+is on the [root README](../README.md).
 
 | | |
 |---|---|
-| **Dashboard** — course day, toggles, next events, test buttons<br><img src="screenshots/dashboard.png" width="400"> | **Courses** — the seeded Dhamma Sudha calendar<br><img src="screenshots/courses.png" width="400"> |
-| **Schedule editor** — per-day gong times<br><img src="screenshots/schedule-editor.png" width="400"> | **Day picker** — explicit days override the default pattern<br><img src="screenshots/schedule-day-picker.png" width="400"> |
-| **Sounds & volume** — track, volumes, doha time and outside-course mode<br><img src="screenshots/sounds-volume.png" width="400"> | **Time** — set clock, RTC status<br><img src="screenshots/time-set-clock.png" width="400"> |
-| **Play history** — every fire logged with result<br><img src="screenshots/logs-play-history.png" width="400"> | **Missed events** — late fires are skipped, never blasted late<br><img src="screenshots/logs-missed-events.png" width="400"> |
-| **Backup & restore** — one-file DB download<br><img src="screenshots/backup-restore.png" width="400"> | |
+| **Login**<br><img src="../docs/screenshots/login.png" width="400" alt="Login"> | **Home** — course day, toggles, next events, test buttons<br><img src="../docs/screenshots/dashboard.png" width="400" alt="Dashboard"> |
+| **Courses** — seeded Dhamma Sudha calendar<br><img src="../docs/screenshots/courses.png" width="400" alt="Courses"> | **Schedule** — default-day gong times<br><img src="../docs/screenshots/schedule.png" width="400" alt="Schedule"> |
+| **Schedule, day 4** — explicit day override<br><img src="../docs/screenshots/schedule-day.png" width="400" alt="Schedule day 4"> | **Sounds & volume**<br><img src="../docs/screenshots/sounds.png" width="400" alt="Sounds"> |
+| **Deshna** — tablet IP, media and USB status<br><img src="../docs/screenshots/deshna.png" width="400" alt="Deshna"> | **Time** — set clock, RTC status<br><img src="../docs/screenshots/time.png" width="400" alt="Time"> |
+| **Logs** — play history; late fires are missed, never played late<br><img src="../docs/screenshots/logs.png" width="400" alt="Play history"> | **Backup & restore** — one-file SQLite download<br><img src="../docs/screenshots/backup.png" width="400" alt="Backup"> |
 
 ## Develop on a Mac/PC (no hardware)
 

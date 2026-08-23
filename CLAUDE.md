@@ -3,8 +3,9 @@
 Context for Claude Code sessions working in this repo. Keep this current when architecture or open items change.
 
 **Branches:** `main` is Gong-NG (`ng/`, `gongd`). `gong-legacy` is the PHP/LAMP
-appliance that used to be `main`. This file still describes the LAMP stack
-that remains in-tree; Gong-NG design is `docs/GONG-NG-DESIGN.md`.
+appliance that used to be `main`. Screenshots of the Gong-NG UI:
+`docs/screenshots/`. This file still describes the LAMP stack that remains
+in-tree; Gong-NG design is `docs/GONG-NG-DESIGN.md`.
 
 ## What this is
 
@@ -79,9 +80,9 @@ matched by `(type, day_no, start_time)` where `start_time = HHMM` encoded as
 - `HHMM` encoding via `date("Gi")` == `hour*100 + minute` — keep schedule `start_time` values consistent with that.
 - The UI is intentionally unauthenticated; do not add half-measures — if hardening is wanted, discuss the threat model first.
 
-## Open findings (bug analysis, 2026-07-12) — NOT yet fixed
+## Open findings (LAMP, 2026-07-12) — not fixed here
 
-Full write-up in `NEXT-SESSION.md`. Ranked:
+These are PHP/LAMP issues. Fix them on `gong-legacy`, not as Gong-NG work.
 
 1. **`check_zero_day()` misses courses that don't start "today"** (`constants.inc:53-74`). Only sets `zero_day` when `c_date == today`; if the start-day cron is missed (power off), the running course is invisible (`c_date < today`) and gongs use a stale zero day all course. Fix: match the active course window instead of `== today`.
 2. **Disabled cron spams log + exits non-zero every minute** (`poll.php:22-25`). Should be silent `exit(0)` like the `gong_enabled` branch right below it. (`doha.php:36-39` same pattern, once/day.)
@@ -90,4 +91,4 @@ Full write-up in `NEXT-SESSION.md`. Ranked:
 5. **`$doha[0] => 0` landmine** (`doha.php:9`) — no bounds guard; not triggered today (indices 1–11) but fragile.
 6. **Settings row read without null check** (`index.php:121-133`) — relies on the single-row invariant; add `LIMIT 1` + guard to harden.
 
-User has been asked which to fix; none applied yet.
+None of these have been applied.
